@@ -1,0 +1,46 @@
+{
+  "name": "ProjectRBI – Barangay 410",
+  "short_name": "Brgy 410",
+  "description": "Barangay 410 Census & Records Management System",
+  "start_url": "./Home.php",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "any",
+  "lang": "en-PH",
+  "icons": [
+    {
+      "src": "assets/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Residents",
+      "short_name": "Residents",
+      "url": "./Display_List.php",
+      "icons": [{ "src": "assets/icons/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "E-Blotter",
+      "short_name": "Blotter",
+      "url": "../eBlotter/eblotter_home.php",
+      "icons": [{ "src": "assets/icons/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Equipment",
+      "short_name": "Equipment",
+      "url": "./equipment.php",
+      "icons": [{ "src": "assets/icons/icon.svg", "sizes": "any" }]
+    }
+  ]
+}
