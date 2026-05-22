@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__.'/auth.php';
 requireRole(['chairperson','secretary']);
 
@@ -15,7 +15,6 @@ $error   = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    verifyCsrf();
     $newName = trim($_POST['signer_name'] ?? '');
     $chapw   = $_POST['chairperson_password'] ?? '';
 
@@ -51,44 +50,24 @@ $active_page   = 'Settings';
 <meta charset="UTF-8">
 <title>Signer Settings - eBlotter</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<link rel="stylesheet" href="eblotter.css">
+<link rel="stylesheet" href="../assets/css/main.css?v=<?=filemtime(dirname(__DIR__).'/assets/css/main.css')?>">
+<link rel="stylesheet" href="eblotter.css?v=<?=filemtime(__DIR__.'/eblotter.css')?>">
 <style>
 </style>
 </head>
 <body>
 
 
-<nav class="eb-navbar">
-  <a class="brand" href="eblotter_home.php"><img src="../eBlotter/images/Barangay_logo_409.png" alt="Logo">Barangay 409</a>
-  <?php $u = currentUser(); if ($u): ?>
-  <div style="display:flex;align-items:center;gap:.5rem;margin-left:auto;margin-right:3.5rem;font-size:.75rem;color:rgba(255,255,255,.6);">
-    <?php
-      $rIcons  = ['chairperson' => 'fas fa-crown', 'secretary' => 'fas fa-user-tie', 'kagawad' => 'fas fa-user'];
-      $rColors = ['chairperson' => '#fbbf24',      'secretary' => '#34d399',          'kagawad' => '#60a5fa'];
-      $role = $u['role'];
-      echo "<i class='{$rIcons[$role]}' style='color:{$rColors[$role]};margin-right:4px'></i>";
-      echo htmlspecialchars($u['full_name']) . " (" . ucfirst($role) . ")";
-    ?>
-    &nbsp;<a href="logout.php" style="color:rgba(255,255,255,.4);text-decoration:none;"><i class="fas fa-sign-out-alt"></i></a>
-  </div>
-  <?php endif; ?>
-</nav>
+<?php
+$page_title   = '<i class="fas fa-pen-nib" style="opacity:.8;margin-right:5px"></i> Signer Settings';
+$page_actions = '<a href="eblotter_home.php" class="btn btn-nav" style="font-size:13px;text-decoration:none"><i class="fas fa-shield-halved"></i> eBlotter Home</a>';
+$active_page   = 'signer';
+include '_eb_topbar.php';
+?>
 
-<div class="hero-banner">
-  <div class="inner">
-    <h1><i class="fas fa-pen-nib" style="font-size:1.8rem"></i> Document Signer Settings</h1>
-    <p>Change who signs official barangay documents (Summons, Notice of Hearing, Mediation Minutes)</p>
-    <div class="hero-actions">
-      <a href="eblotter_home.php"   class="ha-btn"><i class="fas fa-home"></i> Home</a>
-      <a href="add_case.php"        class="ha-btn"><i class="fas fa-plus-circle"></i> Add Record</a>
-      <a href="view_cases.php"      class="ha-btn"><i class="fas fa-list"></i> View Records</a>
-    </div>
-  </div>
-</div>
-
-<div class="eb-main">
+<div style="padding:1.5rem;max-width:700px;margin:0 auto">
   <div class="eb-form-card" style="max-width:520px">
     <h2><i class="fas fa-signature"></i> Edit Signer Name</h2>
 
@@ -115,7 +94,6 @@ $active_page   = 'Settings';
     </div>
 
     <form method="post">
-      <?= csrfField() ?>
       <div class="eb-field">
         <label>New Signer Name</label>
         <input type="text" name="signer_name"
@@ -159,6 +137,6 @@ $active_page   = 'Settings';
     </div>
   </div>
 </div>
-
+<?php include '_eb_footer.php'; ?>
 </body>
 </html>

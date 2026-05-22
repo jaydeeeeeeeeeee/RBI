@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 if(!isset($_SESSION['admin'])){header("Location: admin.php");exit();}
 include 'Residents_DB.php';
@@ -61,19 +61,19 @@ $pet_l=array_keys($tc);$pet_c=array_values($tc);
 <link rel="apple-touch-icon" href="assets/icons/icon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-<link rel="stylesheet" href="assets/css/main.css"/>
+<link rel="stylesheet" href="assets/css/main.css?v=<?=filemtime(__DIR__.'/assets/css/main.css')?>"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <style>
 /* ── HERO ── */
-.hero{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 60%,#0f172a 100%);padding:2.5rem 2rem 2rem;position:relative;overflow:hidden;display:flex;align-items:flex-end;justify-content:space-between;min-height:160px}
+.hero{background:linear-gradient(to right,rgba(15,23,42,.85),rgba(15,23,42,.55)),url('images/Barangay_officials_410.png') center center/cover no-repeat;padding:2.5rem 2rem 2rem;position:relative;overflow:hidden;display:flex;align-items:flex-end;justify-content:space-between;min-height:160px}
 .hero-bg{position:absolute;inset:0;background-image:radial-gradient(circle at 20% 50%,rgba(59,130,246,.12) 0%,transparent 60%),radial-gradient(circle at 80% 20%,rgba(20,184,166,.08) 0%,transparent 50%);pointer-events:none}
 .hero-grad{position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(to bottom,transparent,rgba(15,23,42,.4));pointer-events:none}
 .hero-content{position:relative;z-index:1}
 .hero-greet{font-size:13px;color:rgba(255,255,255,.5);margin-bottom:5px}
 .hero-title{font-family:'Syne',sans-serif;font-size:clamp(1.6rem,4vw,2.4rem);font-weight:800;color:#fff;line-height:1.1;margin-bottom:8px}
 .hero-sub{font-size:13px;color:rgba(255,255,255,.45)}
-.hero-seal{position:relative;z-index:1;width:90px;height:90px;border-radius:50%;border:2px solid rgba(255,255,255,.15);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0}
+.hero-seal{position:relative;z-index:1;width:90px;height:90px;border-radius:50%;border:2px solid rgba(255,255,255,.15);overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0}
 .seal-num{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#3b82f6;line-height:1}
 .seal-txt{font-size:9px;color:rgba(255,255,255,.5);text-align:center;text-transform:uppercase;letter-spacing:.08em;line-height:1.4}
 
@@ -87,7 +87,7 @@ $pet_l=array_keys($tc);$pet_c=array_values($tc);
 .topbar-clock{font-size:12px;color:rgba(255,255,255,.5);background:rgba(255,255,255,.06);padding:4px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.08)}
 .menu-toggle{width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;transition:all .2s}
 .menu-toggle:hover{background:rgba(255,255,255,.15)}
-.menu-toggle span{display:block;width:16px;height:2px;background:#fff;border-radius:2px}
+.menu-toggle span{display:block;width:16px;height:2px;background:#fff;background:#fff;border-radius:2px}
 
 /* ── SIDEBAR ── */
 .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:998}
@@ -166,7 +166,7 @@ main{padding:1.5rem;max-width:1200px;margin:0 auto}
 .chart-panel-title{font-size:13px;font-weight:600;color:#0f172a}
 .chart-panel-sub{font-size:11px;color:#64748b;margin-top:2px}
 .chart-nav{display:flex;align-items:center;gap:8px}
-.cnav-btn{width:28px;height:28px;border-radius:7px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:11px;transition:all .2s}
+.cnav-btn{width:28px;height:28px;border-radius:7px;border:1px solid #e2e8f0;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#64748b;font-size:11px;transition:all .2s}
 .cnav-btn:hover{background:#f8fafc;border-color:#94a3b8}
 .chart-wrap{padding:.75rem 1rem .5rem}
 /* All slides stacked — same spot, fade in/out, nothing beside them to peek */
@@ -207,7 +207,9 @@ main{padding:1.5rem;max-width:1200px;margin:0 auto}
 <!-- TOPBAR -->
 <header class="topbar">
   <a href="Home.php" class="topbar-brand">
-    <div class="topbar-logo">410</div>
+    <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0">
+      <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
+    </div>
     <div><div class="topbar-name">Barangay 410</div><div class="topbar-sub">Census Dashboard</div></div>
   </a>
   <div class="topbar-right">
@@ -227,7 +229,9 @@ main{padding:1.5rem;max-width:1200px;margin:0 auto}
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-head">
     <div class="sidebar-head-brand">
-      <div class="sidebar-head-logo">410</div>
+      <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;flex-shrink:0">
+        <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
+      </div>
       <div><div class="sidebar-head-title">ProjectRBI</div><div class="sidebar-head-sub">Barangay 410 · Manila</div></div>
     </div>
     <button class="sidebar-close-btn" onclick="closeSidebar()"><i class="fas fa-times"></i></button>
@@ -293,7 +297,7 @@ main{padding:1.5rem;max-width:1200px;margin:0 auto}
     <a href="RBI.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-clipboard-list"></i></span> RBI Report</a>
     <?php if(!$is_guest): ?>
     <a href="data_tracking.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-database"></i></span> Document Tracking</a>
-    <a href="../eBlotter/eblotter_home.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-shield-halved"></i></span> E-Blotter</a>
+    <a href="eBlotter/eblotter_home.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-shield-halved"></i></span> E-Blotter</a>
     <a href="equipment.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-box-archive"></i></span> Equipment</a>
     <a href="senior_citizen.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-person-cane"></i></span> Senior Citizens</a>
     <?php endif; ?>
@@ -312,7 +316,7 @@ main{padding:1.5rem;max-width:1200px;margin:0 auto}
     <div class="hero-title">Barangay <span style="color:#3b82f6">410</span> Census<br>Inhabitants Dashboard</div>
     <p class="hero-sub">Centralized system for resident data, household records, and community management · Manila City</p>
   </div>
-  <div class="hero-seal"><div class="seal-num">410</div><div class="seal-txt">Barangay<br>Manila</div></div>
+  <div class="hero-seal"><img src="images/brgy410_logo.png" style="width:90px;height:90px;object-fit:cover;border-radius:50%"></div>
 </section>
 
 <main>
@@ -402,7 +406,7 @@ main{padding:1.5rem;max-width:1200px;margin:0 auto}
       <span class="mod-badge" style="background:#f0fdfa;color:#0f766e">Docs & Requests</span>
     </a>
 
-    <a href="../eBlotter/eblotter_home.php" class="mod-card purple">
+    <a href="eBlotter/eblotter_home.php" class="mod-card purple">
       <i class="fas fa-chevron-right mod-arrow"></i>
       <div class="mod-icon purple"><i class="fas fa-shield-halved"></i></div>
       <div class="mod-title">E-Blotter</div>
@@ -482,11 +486,32 @@ main{padding:1.5rem;max-width:1200px;margin:0 auto}
           <div class="chart-box"><canvas id="laborChart"></canvas></div>
         </div>
 
+        <!-- SLIDE 8: Pets — pie -->
+        <div class="chart-slide">
+          <div class="chart-box narrow"><canvas id="petChart"></canvas></div>
+        </div>
+
+        <!-- SLIDE 9: House Ownership — pie -->
+        <div class="chart-slide">
+          <div class="chart-box narrow"><canvas id="houseChart"></canvas></div>
+        </div>
+
+        <!-- SLIDE 10: Car Ownership — donut -->
+        <div class="chart-slide">
+          <div class="chart-box narrow"><canvas id="carChart"></canvas></div>
+        </div>
+
+        <!-- SLIDE 11: Motorcycle Ownership — donut -->
+        <div class="chart-slide">
+          <div class="chart-box narrow"><canvas id="motoChart"></canvas></div>
+        </div>
+
       </div>
     </div>
     <div class="cdots" id="dots"></div>
   </div>
   <?php endif; // end !$is_guest chart section ?>
+
 
 </main>
 <footer style="background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:center;padding:1.25rem 2rem;letter-spacing:.02em">
@@ -507,10 +532,11 @@ main{padding:1.5rem;max-width:1200px;margin:0 auto}
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Appearance</div>
     <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.05);border-radius:10px;padding:12px 14px;margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:10px"><div style="width:30px;height:30px;background:rgba(255,255,255,.08);border-radius:8px;display:flex;align-items:center;justify-content:center"><i class="fas fa-circle-half-stroke" style="color:#94a3b8;font-size:13px"></i></div><div><div style="font-size:13px;font-weight:600;color:#fff">Dark Mode</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Toggle dark/light theme</div></div></div>
-      <button id="darkToggle" onclick="toggleDarkMode()" style="width:42px;height:24px;border-radius:12px;background:#475569;border:none;cursor:pointer;position:relative;transition:background .25s;flex-shrink:0"><span id="darkThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .25s"></span></button>
+      <button id="darkToggle" onclick="toggleDarkMode()" style="width:42px;height:24px;border-radius:12px;background:#475569;border:none;cursor:pointer;position:relative;transition:background .25s;flex-shrink:0"><span id="darkThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;transition:left .25s"></span></button>
     </div>
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Data</div>
     <form id="settingsImportForm" action="Import_excel.php" method="POST" enctype="multipart/form-data">
+      <?= csrf_field() ?>
       <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:12px 14px;margin-bottom:8px">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div style="width:30px;height:30px;background:rgba(59,130,246,.15);border-radius:8px;display:flex;align-items:center;justify-content:center"><i class="fas fa-upload" style="color:#60a5fa;font-size:13px"></i></div><div><div style="font-size:13px;font-weight:600;color:#fff">Import CSV</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Upload resident data</div></div></div>
         <input type="file" name="csv_file" accept=".csv" style="width:100%;font-size:12px;color:#94a3b8;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:7px;padding:6px 10px;margin-bottom:7px">
@@ -571,6 +597,10 @@ const stl=[
   ['Marital Status','Civil status breakdown'],
   ['Special Sectors','PWD, Senior Citizens, and Solo Parents'],
   ['Labor Force Type','Breakdown of employed residents by employer/sector'],
+  ['Registered Pets','Dogs, Cats, and other pets in the barangay'],
+  ['House Ownership','Whether residents own or rent their home'],
+  ['Car Ownership','Households with cars in the barangay'],
+  ['Motorcycle Ownership','Households with motorcycles in the barangay'],
 ];
 let cs=0,autoTimer=null;
 const slides=document.querySelectorAll('.chart-slide');
@@ -710,6 +740,42 @@ mkHBar('laborChart',
   <?=json_encode($lf_counts)?>,
   [COLORS.blue,COLORS.green,COLORS.teal,COLORS.amber,COLORS.purple]
 );
+
+// Slide 8: Pets — pie (filter zeros so empty slices don't hide data)
+(function(){
+  const pl=<?=json_encode($pet_l)?>,pc=<?=json_encode($pet_c)?>;
+  const fl=[],fc=[],colors=[COLORS.amber,COLORS.rose,COLORS.gray];const fc2=[];
+  pl.forEach((l,i)=>{if(pc[i]>0){fl.push(l);fc.push(pc[i]);fc2.push(colors[i]);}});
+  if(fl.length){mkPie('petChart',fl,fc,fc2);}
+  else{const cv=document.getElementById('petChart');if(cv){const ctx=cv.getContext('2d');ctx.font='14px Inter';ctx.fillStyle='#94a3b8';ctx.textAlign='center';ctx.fillText('No pets registered yet',cv.width/2,cv.height/2||80);}}
+})();
+
+// Slide 9: House ownership — pie
+(function(){
+  const pl=<?=json_encode($house_l)?>,pc=<?=json_encode($house_c)?>;
+  const palette=[COLORS.blue,COLORS.teal,COLORS.amber,COLORS.rose,COLORS.purple,COLORS.gray];
+  const fl=[],fc=[],fc2=[];
+  pl.forEach((l,i)=>{if(pc[i]>0){fl.push(l);fc.push(pc[i]);fc2.push(palette[i%palette.length]);}});
+  if(fl.length)mkPie('houseChart',fl,fc,fc2);
+})();
+
+// Slide 10: Car ownership — donut
+(function(){
+  const pl=<?=json_encode($car_l)?>,pc=<?=json_encode($car_c)?>;
+  const palette=[COLORS.blue,COLORS.rose,COLORS.gray];
+  const fl=[],fc=[],fc2=[];
+  pl.forEach((l,i)=>{if(pc[i]>0){fl.push(l);fc.push(pc[i]);fc2.push(palette[i%palette.length]);}});
+  if(fl.length)mkDonut('carChart',fl,fc,fc2);
+})();
+
+// Slide 11: Motorcycle ownership — donut
+(function(){
+  const pl=<?=json_encode($moto_l)?>,pc=<?=json_encode($moto_c)?>;
+  const palette=[COLORS.teal,COLORS.rose,COLORS.gray];
+  const fl=[],fc=[],fc2=[];
+  pl.forEach((l,i)=>{if(pc[i]>0){fl.push(l);fc.push(pc[i]);fc2.push(palette[i%palette.length]);}});
+  if(fl.length)mkDonut('motoChart',fl,fc,fc2);
+})();
 </script>
 <script>
 if ('serviceWorker' in navigator) {
@@ -718,3 +784,10 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
+
+
+
+
+
+
+

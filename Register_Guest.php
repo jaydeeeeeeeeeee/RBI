@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 // Guest registration - no admin session required
 if (session_status() === PHP_SESSION_NONE) session_start();
 include 'Residents_DB.php';
@@ -40,7 +40,7 @@ if($_SERVER["REQUEST_METHOD"]=="POST"){
 <title>Guest Registration – ProjectRBI</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-<link rel="stylesheet" href="assets/css/main.css"/>
+<link rel="stylesheet" href="assets/css/main.css?v=<?=filemtime(__DIR__.'/assets/css/main.css')?>"/>
 <style>
 .guest-header{background:#0f172a;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between}
 .guest-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
@@ -350,3 +350,4 @@ document.getElementById('birthdate').setAttribute('max',new Date().toISOString()
 </script>
 </body>
 </html>
+

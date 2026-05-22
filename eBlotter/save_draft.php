@@ -14,25 +14,6 @@ if (!$u || !in_array($u['role'], ['chairperson','secretary'])) {
     exit();
 }
 
-// CSRF check — JS must send X-CSRF-Token header or csrf_token POST field
-$token      = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
-$savedToken = $_SESSION['csrf_token'] ?? '';
-if ($savedToken === '' || $token === '' || !hash_equals($savedToken, $token)) {
-    echo json_encode(['ok' => false, 'error' => 'CSRF token mismatch']);
-    exit();
-}
-// FIX #6: Server-side rate limiting — max 1 save per 5 seconds per user.
-// Prevents flooding the case_summons/notice/mediation tables with rapid AJAX calls.
-$rlKey  = 'save_draft_last_' . $u['id'];
-$rlLast = $_SESSION[$rlKey] ?? 0;
-if (time() - $rlLast < 5) {
-    echo json_encode(['ok' => false, 'error' => 'Too many save requests. Please wait a moment.']);
-    exit();
-}
-$_SESSION[$rlKey] = time();
-
-
-
 $savedBy = $u['full_name'];
 $docType = trim($_POST['doc_type'] ?? '');
 $case_id = trim($_POST['case_id']  ?? '');

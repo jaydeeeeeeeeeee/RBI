@@ -1,21 +1,112 @@
 <?php
 include 'Residents_DB.php';
-$today=date('Y-m-d');
-header("Content-Type: application/vnd.ms-excel");
-header("Content-Disposition: attachment; filename=Barangay410_Residents_$today.xls");
-header("Pragma: no-cache");header("Expires: 0");
-$rr=mysqli_query($conn,"SELECT * FROM residents WHERE is_hidden=0 ORDER BY last_name");
-$pr=mysqli_query($conn,"SELECT * FROM pets");
-$pb=[];while($p=mysqli_fetch_assoc($pr))$pb[$p['resident_id']][]=$p;
-function safe($v){return trim($v)!==''?htmlspecialchars($v):'N/A';}
-function age($b){if(!$b)return'N/A';return(new DateTime())->diff(new DateTime($b))->y;}
-$ex=date('F j, Y \a\t g:i A');
-echo "<table border='1'>";
-echo "<tr><td colspan='54'><strong>Barangay 410 – Residents Export</strong> | Generated: $ex</td></tr>";
-echo "<tr><th>created_at</th><th>First Name</th><th>Middle Name</th><th>Last Name</th><th>Suffix</th><th>Head of Family</th><th>Relationship</th><th>Head First</th><th>Head Middle</th><th>Head Last</th><th>Head Suffix</th><th>Perm Address</th><th>Prov Address</th><th>House Owner</th><th>House Details</th><th>Years in Barangay</th><th>Voter</th><th>Precinct No</th><th>Mobile</th><th>Landline</th><th>Email</th><th>Birthdate</th><th>Age</th><th>Gender</th><th>Marital Status</th><th>Religion</th><th>Citizenship</th><th>Education</th><th>Occupation</th><th>Employer</th><th>Work Hours</th><th>Grade Level</th><th>School</th><th>Out of School Youth</th><th>Employment</th><th>Has Car</th><th>Car Brand</th><th>Car Model</th><th>Car Color</th><th>Car Plate</th><th>Has Motorcycle</th><th>Motor Brand</th><th>Motor Model</th><th>Motor Color</th><th>Motor Plate</th><th>Senior</th><th>OSCA ID</th><th>PWD</th><th>PWD ID</th><th>Disability</th><th>Solo Parent</th><th>Solo Parent ID</th><th>Has Pets</th><th>Pets Info</th></tr>";
-while($r=mysqli_fetch_assoc($rr)){
-  $pi='N/A';
-  if(!empty($pb[$r['id']])){$pi='';foreach($pb[$r['id']] as $p)$pi.="Name:".safe($p['pet_name']).",Age:".safe($p['pet_age']).",Sex:".safe($p['pet_sex']).",Type:".safe($p['pet_type'])." || ";$pi=rtrim($pi,' || ');}
-  echo "<tr><td>".safe($r['created_at'])."</td><td>".safe($r['first_name'])."</td><td>".safe($r['middle_name'])."</td><td>".safe($r['last_name'])."</td><td>".safe($r['suffix'])."</td><td>".safe($r['head_of_family'])."</td><td>".safe($r['relationship'])."</td><td>".safe($r['head_first_name'])."</td><td>".safe($r['head_middle_name'])."</td><td>".safe($r['head_last_name'])."</td><td>".safe($r['head_suffix'])."</td><td>".safe($r['perm_address'])."</td><td>".safe($r['prov_address'])."</td><td>".safe($r['house_owner'])."</td><td>".safe($r['house_details'])."</td><td>".safe($r['years_in_barangay'])."</td><td>".safe($r['voter'])."</td><td>".safe($r['precinct_no'])."</td><td>".safe($r['mobile'])."</td><td>".safe($r['landline'])."</td><td>".safe($r['email'])."</td><td>".safe($r['birthdate'])."</td><td>".age($r['birthdate'])."</td><td>".safe($r['gender'])."</td><td>".safe($r['marital_status'])."</td><td>".safe($r['religion'])."</td><td>".safe($r['citizenship'])."</td><td>".safe($r['education'])."</td><td>".safe($r['occupation'])."</td><td>".safe($r['employer'])."</td><td>".safe($r['work_hours'])."</td><td>".safe($r['grade_level'])."</td><td>".safe($r['school_name'])."</td><td>".safe($r['out_of_school_youth'])."</td><td>".safe($r['employment_status'])."</td><td>".safe($r['has_car'])."</td><td>".safe($r['car_brand'])."</td><td>".safe($r['car_model'])."</td><td>".safe($r['car_color'])."</td><td>".safe($r['car_plate'])."</td><td>".safe($r['has_motorcycle'])."</td><td>".safe($r['motor_brand'])."</td><td>".safe($r['motor_model'])."</td><td>".safe($r['motor_color'])."</td><td>".safe($r['motor_plate'])."</td><td>".safe($r['is_senior'])."</td><td>".safe($r['osca_id'])."</td><td>".safe($r['pwd_status'])."</td><td>".safe($r['pwd_id'])."</td><td>".safe($r['disability_type'])."</td><td>".safe($r['solo_parent_status'])."</td><td>".safe($r['solo_parent_id'])."</td><td>".($r['has_pets']?'Yes':'No')."</td><td>".safe($pi)."</td></tr>";
+
+$today = date('Y-m-d');
+header('Content-Type: text/csv; charset=utf-8');
+header('Content-Disposition: attachment; filename=Barangay410_Residents_' . $today . '.csv');
+header('Pragma: no-cache');
+header('Expires: 0');
+
+$out = fopen('php://output', 'w');
+// UTF-8 BOM so Excel opens it correctly without garbled characters
+fwrite($out, "\xEF\xBB\xBF");
+
+// Column headers — normalize() in Import_excel.php strips non-letters and lowercases,
+// so "First Name" → "firstname", "Has Car" → "hascar", etc.
+fputcsv($out, [
+    'First Name','Middle Name','Last Name','Suffix',
+    'Head Of Family','Relationship',
+    'Head First Name','Head Middle Name','Head Last Name','Head Suffix',
+    'Perm Address','Prov Address','House Owner','House Details','Years In Barangay',
+    'Voter','Precinct No','Mobile','Landline','Email',
+    'Birthdate','Gender','Marital Status','Religion','Citizenship',
+    'Education','Occupation','Employer','Work Hours',
+    'Grade Level','School Name','Out Of School Youth','Employment Status',
+    'Has Car','Car Brand','Car Model','Car Color','Car Plate',
+    'Has Motorcycle','Motor Brand','Motor Model','Motor Color','Motor Plate',
+    'Is Senior','OSCA ID','PWD Status','PWD ID','Disability Type',
+    'Solo Parent Status','Solo Parent ID','Has Pets','Pets Info',
+]);
+
+$rr = mysqli_query($conn, "SELECT * FROM residents WHERE is_hidden=0 ORDER BY last_name, first_name");
+$pr = mysqli_query($conn, "SELECT * FROM pets ORDER BY resident_id, id");
+$pb = [];
+while ($p = mysqli_fetch_assoc($pr)) $pb[$p['resident_id']][] = $p;
+
+function xval($v) { return $v ?? ''; }
+
+while ($r = mysqli_fetch_assoc($rr)) {
+    // Build pets info string in format the importer expects:
+    // "Name: Buddy, Age: 3, Sex: Male, Color: Brown, Type: Dog, Breeder: No, Other Pets:  || ..."
+    $pi = '';
+    if (!empty($pb[$r['id']])) {
+        $parts = [];
+        foreach ($pb[$r['id']] as $p) {
+            $parts[] = 'Name: '       . xval($p['pet_name'])       .
+                       ', Age: '      . xval($p['pet_age'])        .
+                       ', Sex: '      . xval($p['pet_sex'])        .
+                       ', Color: '    . xval($p['pet_color'])      .
+                       ', Type: '     . xval($p['pet_type'])       .
+                       ', Breeder: '  . xval($p['breeder_status']) .
+                       ', Other Pets: ' . xval($p['other_pets']);
+        }
+        $pi = implode(' || ', $parts);
+    }
+
+    fputcsv($out, [
+        xval($r['first_name']),
+        xval($r['middle_name']),
+        xval($r['last_name']),
+        xval($r['suffix']),
+        xval($r['head_of_family']),
+        xval($r['relationship']),
+        xval($r['head_first_name']),
+        xval($r['head_middle_name']),
+        xval($r['head_last_name']),
+        xval($r['head_suffix']),
+        xval($r['perm_address']),
+        xval($r['prov_address']),
+        xval($r['house_owner']),
+        xval($r['house_details']),
+        xval($r['years_in_barangay']),
+        xval($r['voter']),
+        xval($r['precinct_no']),
+        xval($r['mobile']),
+        xval($r['landline']),
+        xval($r['email']),
+        xval($r['birthdate']),
+        xval($r['gender']),
+        xval($r['marital_status']),
+        xval($r['religion']),
+        xval($r['citizenship']),
+        xval($r['education']),
+        xval($r['occupation']),
+        xval($r['employer']),
+        xval($r['work_hours']),
+        xval($r['grade_level']),
+        xval($r['school_name']),
+        xval($r['out_of_school_youth']),
+        xval($r['employment_status']),
+        xval($r['has_car']),
+        xval($r['car_brand']),
+        xval($r['car_model']),
+        xval($r['car_color']),
+        xval($r['car_plate']),
+        xval($r['has_motorcycle']),
+        xval($r['motor_brand']),
+        xval($r['motor_model']),
+        xval($r['motor_color']),
+        xval($r['motor_plate']),
+        xval($r['is_senior']),
+        xval($r['osca_id']),
+        xval($r['pwd_status']),
+        xval($r['pwd_id']),
+        xval($r['disability_type']),
+        xval($r['solo_parent_status']),
+        xval($r['solo_parent_id']),
+        $r['has_pets'] ? 'Yes' : 'No',
+        $pi,
+    ]);
 }
-echo "</table>";
+
+fclose($out);

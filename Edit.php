@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 if (!isset($_SESSION['admin'])) { header("Location: admin.php"); exit(); }
 include 'Residents_DB.php';
@@ -197,7 +197,7 @@ function sel($r, $k, $v) { return ($r[$k] ?? '') == $v ? 'selected' : ''; }
 <title>Edit Resident – ProjectRBI</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-<link rel="stylesheet" href="assets/css/main.css"/>
+<link rel="stylesheet" href="assets/css/main.css?v=<?=filemtime(__DIR__.'/assets/css/main.css')?>"/>
 <style>
 body{background:#f8fafc}
 .page-top{background:#0f172a;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
@@ -244,7 +244,7 @@ main{padding:1.5rem;max-width:980px;margin:0 auto}
 .sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;padding:8px 0 8px;border-bottom:2px solid #f1f5f9;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 .sec-title i{color:#3b82f6;font-size:12px;width:16px;text-align:center}
 .fg label{display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px}
-.fg input,.fg select,.fg textarea{width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;color:#0f172a;outline:none;transition:border .2s,box-shadow .2s;box-sizing:border-box;background:#fff}
+.fg input,.fg select,.fg textarea{width:100%;padding:9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;color:#0f172a;outline:none;transition:border .2s,box-shadow .2s;box-sizing:border-box}
 .fg input:focus,.fg select:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.08)}
 .fg input:hover,.fg select:hover{border-color:#94a3b8}
 .r2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -279,7 +279,9 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
 
 <header class="topbar" style="gap:12px">
   <a href="Home.php" class="topbar-brand" style="flex-shrink:0">
-    <div class="topbar-logo">410</div>
+    <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0">
+      <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
+    </div>
     <div><div class="topbar-name">Barangay 410</div><div class="topbar-sub">Residents</div></div>
   </a>
   <div style="display:flex;align-items:center;gap:6px;border-left:1px solid rgba(255,255,255,.12);padding-left:14px">
@@ -294,8 +296,11 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-head">
-    <div class="sidebar-head-brand"><div class="sidebar-head-logo">410</div>
-    <div><div class="sidebar-head-title">ProjectRBI</div><div class="sidebar-head-sub">Barangay 410 · Manila</div></div></div>
+    <div class="sidebar-head-brand">
+      <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;flex-shrink:0">
+        <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
+      </div>
+      <div><div class="sidebar-head-title">ProjectRBI</div><div class="sidebar-head-sub">Barangay 410 · Manila</div></div></div>
     <button class="sidebar-close-btn" onclick="closeSidebar()"><i class="fas fa-times"></i></button>
   </div>
   <div style="padding:14px 12px 6px">
@@ -338,7 +343,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
         <div><div style="font-size:13px;font-weight:600;color:#fff">Dark Mode</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Toggle dark/light theme</div></div>
       </div>
       <button id="darkToggle" onclick="toggleDarkMode()" style="width:42px;height:24px;border-radius:12px;background:#475569;border:none;cursor:pointer;position:relative;transition:background .25s;flex-shrink:0">
-        <span id="darkThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .25s"></span>
+        <span id="darkThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;transition:left .25s"></span>
       </button>
     </div>
     <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:12px 14px;margin-bottom:16px">
@@ -842,3 +847,10 @@ function resetZoom(){zoomLvl=1;localStorage.setItem('rbi_zoom','1');applyZoom();
 </script>
 </body>
 </html>
+
+
+
+
+
+
+

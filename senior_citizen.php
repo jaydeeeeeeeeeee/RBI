@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 if(!isset($_SESSION['admin'])){header("Location: admin.php");exit();}
 include 'role_helper.php';
@@ -121,7 +121,7 @@ function sc_age($m,$d,$y){
 <title>Senior Citizens – ProjectRBI</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-<link rel="stylesheet" href="assets/css/main.css"/>
+<link rel="stylesheet" href="assets/css/main.css?v=<?=filemtime(__DIR__.'/assets/css/main.css')?>"/>
 <style>
 .page-top{background:#0f172a;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
 .page-top h1{color:#fff;font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800}
@@ -144,7 +144,7 @@ main{padding:1.5rem;max-width:1200px;margin:0 auto}
 
 /* Table */
 .sc-table-wrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;min-width:860px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+table{width:100%;border-collapse:collapse;min-width:860px;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05)}
 thead th{background:#f8fafc;padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid #e2e8f0}
 tbody td{padding:10px 14px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#1e293b;vertical-align:middle}
 tbody tr:last-child td{border-bottom:none}
@@ -162,7 +162,7 @@ tbody tr.birthday-today{background:#f0fdf4}
 /* Birthday tab */
 .bday-section{margin-bottom:1.5rem}
 .bday-section-title{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem}
-.bday-card{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;margin-bottom:8px}
+.bday-card{display:flex;align-items:center;gap:12px;border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;margin-bottom:8px}
 .bday-card.today{border-color:#fbbf24;background:#fffbeb}
 .bday-avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
 .bday-avatar.today-av{background:#fef3c7}
@@ -184,18 +184,18 @@ tbody tr.birthday-today{background:#f0fdf4}
 footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:center;padding:1.25rem;margin-top:2rem}
 .empty-state{text-align:center;padding:3rem;color:#94a3b8}
 .empty-state i{font-size:48px;opacity:.2;display:block;margin-bottom:12px}
+.topbar{position:sticky;top:0;z-index:200}
 </style>
 </head>
 <body>
 
 <header class="topbar" style="gap:12px">
   <a href="Home.php" class="topbar-brand" style="flex-shrink:0">
-    <div class="topbar-logo">410</div>
+    <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0">
+      <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
+    </div>
     <div><div class="topbar-name">Barangay 410</div><div class="topbar-sub">Senior Citizens</div></div>
   </a>
-  <div style="display:flex;align-items:center;border-left:1px solid rgba(255,255,255,.12);padding-left:14px;min-width:0">
-    <span style="font-size:13px;font-weight:700;color:#fff;font-family:'Syne',sans-serif;white-space:nowrap"><i class="fas fa-person-cane" style="opacity:.8;margin-right:5px"></i> Senior Citizens</span>
-  </div>
   <div class="topbar-right" style="margin-left:auto">
     <?php if($is_captain):?>
     <button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="document.getElementById('syncModal').classList.add('open')"><i class="fas fa-rotate"></i> Sync Residents</button>
@@ -206,13 +206,40 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
 </header>
 
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
-<aside class="sidebar" id="sidebar">
+<aside class="sidebar" id="sidebar" style="overflow-y:auto;overflow-x:hidden">
   <div class="sidebar-head">
     <div class="sidebar-head-brand">
-      <div class="sidebar-head-logo">410</div>
+      <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;flex-shrink:0">
+        <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
+      </div>
       <div><div class="sidebar-head-title">ProjectRBI</div><div class="sidebar-head-sub">Barangay 410 · Manila</div></div>
     </div>
     <button class="sidebar-close-btn" onclick="closeSidebar()"><i class="fas fa-times"></i></button>
+  </div>
+  <!-- Senior Citizens stats -->
+  <div style="padding:12px 10px 10px;border-bottom:1px solid rgba(255,255,255,.07)">
+    <div class="sidebar-label" style="margin-bottom:7px">Senior Citizens Summary</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+      <?php
+      $sc_cards=[
+        ['fa-person-cane',     '99,102,241','#a5b4fc',$total,              'Total'],
+        ['fa-heart-pulse',     '34,197,94', '#86efac',$active,             'Active'],
+        ['fa-cross',           '244,63,94', '#fda4af',$deceased,           'Deceased'],
+        ['fa-cake-candles',    '245,158,11','#fbbf24',$bday_month,         'Bday This Month'],
+        ['fa-bell',            '168,85,247','#d8b4fe',count($bday_today),  'Bday Today'],
+      ];
+      foreach($sc_cards as [$ico,$rgb,$tc,$val,$lbl]):?>
+      <div style="background:rgba(255,255,255,.05);border-radius:9px;padding:8px;display:flex;align-items:center;gap:7px">
+        <div style="width:28px;height:28px;border-radius:7px;background:rgba(<?=$rgb?>,.22);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="fas <?=$ico?>" style="font-size:11px;color:<?=$tc?>"></i>
+        </div>
+        <div>
+          <div style="font-size:16px;font-weight:800;color:<?=$tc?>;line-height:1"><?=$val?></div>
+          <div style="font-size:9.5px;color:rgba(255,255,255,.4);margin-top:1px"><?=$lbl?></div>
+        </div>
+      </div>
+      <?php endforeach;?>
+    </div>
   </div>
   <div style="padding:14px 12px 6px">
     <button onclick="openSettings()" class="sidebar-settings-btn" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);color:#93c5fd;font-family:Inter,sans-serif;font-size:13px;font-weight:600;cursor:pointer">
@@ -228,7 +255,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
     <a href="RBI.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-clipboard-list"></i></span> RBI Report</a>
     <?php if(!$is_guest):?>
     <a href="data_tracking.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-database"></i></span> Document Tracking</a>
-    <a href="../eBlotter/eblotter_home.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-shield-halved"></i></span> E-Blotter</a>
+    <a href="eBlotter/eblotter_home.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-shield-halved"></i></span> E-Blotter</a>
     <a href="equipment.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-box-archive"></i></span> Equipment</a>
     <a href="senior_citizen.php" class="sidebar-link active"><span class="sidebar-icon"><i class="fas fa-person-cane"></i></span> Senior Citizens</a>
     <?php endif;?>
@@ -236,6 +263,12 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
   <div class="sidebar-footer"></div>
 </aside>
 
+<div style="background:linear-gradient(to right,rgba(15,23,42,.9),rgba(15,23,42,.65)),url('images/Barangay_officials_410.png') center 60%/cover no-repeat;padding:2rem 2rem">
+  <div>
+    <h1 style="font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;color:#fff;margin:0 0 .25rem"><i class="fas fa-person-cane" style="margin-right:.5rem;opacity:.8"></i>Senior Citizens Registry</h1>
+    <p style="color:rgba(255,255,255,.6);font-size:.84rem;margin:0">Barangay 410 · Manila City · Senior citizen records and birthday tracking</p>
+  </div>
+</div>
 <main style="padding-top:1.75rem">
   <?php if($msg):?><div class="alert alert-success" style="margin-bottom:1rem"><i class="fas fa-check-circle"></i> <?=$msg?></div><?php endif;?>
   <?php if($err):?><div class="alert alert-error" style="margin-bottom:1rem"><i class="fas fa-exclamation-triangle"></i> <?=htmlspecialchars($err)?></div><?php endif;?>
@@ -469,11 +502,37 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
 </div>
 <?php endif;?>
 
+<div id="settingsOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1100" onclick="closeSettings()"></div>
+<div id="settingsDrawer" style="position:fixed;top:0;right:-360px;width:340px;height:100vh;background:#0f172a;z-index:1101;transition:right .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,.08)">
+  <div style="padding:20px 20px 14px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:32px;height:32px;background:linear-gradient(135deg,#3b82f6,#14b8a6);border-radius:8px;display:flex;align-items:center;justify-content:center"><i class="fas fa-gear" style="color:#fff;font-size:13px"></i></div>
+      <div><div style="font-family:Syne,sans-serif;font-size:14px;font-weight:800;color:#fff">Settings</div><div style="font-size:11px;color:rgba(255,255,255,.4)">ProjectRBI Barangay 410</div></div>
+    </div>
+    <button onclick="closeSettings()" style="width:28px;height:28px;background:rgba(255,255,255,.08);border:none;border-radius:7px;color:rgba(255,255,255,.6);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center"><i class="fas fa-times"></i></button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:16px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Actions</div>
+    <button onclick="window.print()" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer">
+      <div style="width:30px;height:30px;background:rgba(255,255,255,.08);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-print" style="color:#94a3b8;font-size:13px"></i></div>
+      <div style="text-align:left"><div style="font-size:13px;font-weight:600;color:#fff">Print Page</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Print current view</div></div>
+    </button>
+  </div>
+  <div style="padding:14px 16px;border-top:1px solid rgba(255,255,255,.07)">
+    <a href="logout.php" style="display:flex;align-items:center;gap:10px;background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.25);border-radius:10px;padding:12px 14px;text-decoration:none">
+      <div style="width:30px;height:30px;background:rgba(244,63,94,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-right-from-bracket" style="color:#f43f5e;font-size:13px"></i></div>
+      <div><div style="font-size:13px;font-weight:700;color:#f43f5e">Logout</div><div style="font-size:11px;color:rgba(244,63,94,.6)">End your session</div></div>
+    </a>
+  </div>
+</div>
+
 <script>
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sidebarOverlay').classList.add('open');document.body.style.overflow='hidden';}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('open');document.body.style.overflow='';}
 document.getElementById('menuToggle').addEventListener('click',openSidebar);
-function openSettings(){}
+function openSettings(){document.getElementById('settingsOverlay').style.display='block';document.getElementById('settingsDrawer').style.right='0';document.body.style.overflow='hidden';if(typeof closeSidebar==='function')closeSidebar();}
+function closeSettings(){document.getElementById('settingsOverlay').style.display='none';document.getElementById('settingsDrawer').style.right='-360px';document.body.style.overflow='';}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSettings();});
 
 function switchTab(name, el){
     document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
@@ -499,3 +558,11 @@ function openEdit(row){
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+

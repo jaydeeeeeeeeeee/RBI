@@ -8,6 +8,21 @@ if (!isset($_POST['export_pw']) || empty($_POST['export_pw'])) {
     echo '<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:3rem;"><h2 style="color:#991b1b;">&#128274; Password Required</h2><p>Please close this window and export with the correct password.</p></body></html>';
     exit();
 }
+// Guard: defined in auth.php; fallback for safety
+if (!function_exists('verifyCurrentUserOrChairPassword')) {
+    function verifyCurrentUserOrChairPassword(mysqli $conn, string $attempt): bool {
+        if (isChairperson()) {
+            $uid = currentUser()['id'];
+            $s = $conn->prepare("SELECT password FROM admins WHERE id=? LIMIT 1");
+            if (!$s) return false;
+            $s->bind_param('i', $uid); $s->execute();
+            $row = $s->get_result()->fetch_assoc();
+            return $row && password_verify($attempt, $row['password']);
+        }
+        return verifyChairpersonPassword($conn, $attempt);
+    }
+}
+$exportPwOk = false;
 $exportPwOk = verifyCurrentUserOrChairPassword($conn, $_POST['export_pw']);
 if (!$exportPwOk) {
     http_response_code(403);
@@ -43,32 +58,46 @@ require_once __DIR__ . '/barcode.php';
 
 class SummonsPDF extends FPDF {
     public string $exportedBy='', $exportedAt='';
+
+    function RotatedText($x, $y, $txt, $angle) {
+        $this->_out('q');
+        $rad = deg2rad($angle);
+        $c = cos($rad); $s = sin($rad);
+        $cx = $x * $this->k;
+        $cy = ($this->h - $y) * $this->k;
+        $this->_out(sprintf('%.5F %.5F %.5F %.5F %.5F %.5F cm', $c, $s, -$s, $c, $cx, $cy));
+        // Re-emit color and font inside q/Q so they aren't lost by state save/restore
+        $this->_out($this->TextColor);
+        $this->_out(sprintf('BT /F%d %.2F Tf 0 0 Td (%s) Tj ET',
+            $this->CurrentFont['i'], $this->FontSizePt, $this->_escape($txt)));
+        $this->_out('Q');
+    }
+
     function Header(){
-
-        // Watermark
-        $logo = __DIR__ . '/../eBlotter/images/Barangay_logo_409_1.png';
-
-        if(file_exists($logo)){
-            $pageW = $this->GetPageWidth();
-            $pageH = $this->GetPageHeight();
-
-            $size = 100;
-
-            $x = ($pageW - $size) / 2;
-            $y = ($pageH - $size) / 2;
-
-            $this->Image($logo, $x, $y, $size);
+        // Seal watermark centered on page
+        $logos = [
+            __DIR__ . '/images/brgy410_logo.png',
+            __DIR__ . '/images/brgy410_logo.png',
+        ];
+        foreach ($logos as $logo) {
+            if (file_exists($logo)) {
+                $size = 90;
+                $x = ($this->GetPageWidth()  - $size) / 2;
+                $y = ($this->GetPageHeight() - $size) / 2;
+                $this->Image($logo, $x, $y, $size);
+                break;
+            }
         }
 
         $this->SetFont('Times', '', 10);
-        $this->SetTextColor(0,0,0);
+        $this->SetTextColor(0, 0, 0);
         $this->SetXY(38, 8);
         $this->Cell(134, 4.5, 'Republic of the Philippines', 0, 1, 'C');
         $this->SetX(38); $this->Cell(134, 4.5, 'City of Manila', 0, 1, 'C');
         $this->SetFont('Times', 'B', 10);
-        $this->SetX(38); $this->Cell(134, 4.5, 'Barangay 409 Zone 42', 0, 1, 'C');
+        $this->SetX(38); $this->Cell(134, 4.5, defined('BRGY_FULLNAME') ? BRGY_FULLNAME : 'Barangay 410 Zone 42', 0, 1, 'C');
         $this->SetFont('Times', '', 10);
-        $this->SetX(38); $this->Cell(134, 4.5, 'District IV', 0, 1, 'C');
+        $this->SetX(38); $this->Cell(134, 4.5, 'District ' . (defined('BRGY_DISTRICT') ? BRGY_DISTRICT : 'IV'), 0, 1, 'C');
         $this->Ln(3);
         $this->SetFont('Times', 'B', 13);
         $this->Cell(0, 6, 'OFFICE OF THE LUPONG TAGAPAMAYAPA', 0, 1, 'C');
@@ -76,19 +105,20 @@ class SummonsPDF extends FPDF {
     }
 
     function Footer() {
-        $this->SetY(-10);
-        $this->SetFont('Times','I',7);
-        $this->SetTextColor(130,130,130);
-        $this->Cell(56,4,'Exported by: '.$this->exportedBy.' | '.$this->exportedAt.'',0,0,'C');
+        $txt = 'DIGITAL COPY - NOT VALID IF UNSIGNED';
+        $this->SetFont('Times', 'B', 10);
+        $unitW = $this->GetStringWidth($txt);
+        $targetH = $this->GetPageHeight() - 20;
+        $fs = ($unitW > 0) ? (10 * $targetH / $unitW) : 30;
+        $this->SetFont('Times', 'B', $fs);
+        $tw = $this->GetStringWidth($txt);
+        $this->SetTextColor(190, 190, 190);
+        $this->RotatedText(10, ($this->GetPageHeight() + $tw) / 2, $txt, 90);
 
-        $this->SetY(-20);
-        $width = 100;
-        $x = $this->GetPageWidth() - $width - 10; // 10mm right margin
-        $this->SetX($x);
-        $this->SetFont('Times','B',12);
-        $this->SetLineWidth(0.5);
-        $this->SetDrawColor(130, 130, 130);     
-        $this->Cell(100,10,'DIGITAL COPY ' .chr(150) . ' NOT VALID IF UNSIGNED',1,0,'C');
+        $this->SetY(-10);
+        $this->SetFont('Times', 'I', 7);
+        $this->SetTextColor(130, 130, 130);
+        $this->Cell(0, 4, 'Exported by: '.$this->exportedBy.' | '.$this->exportedAt, 0, 0, 'C');
     }
 }
 
@@ -290,17 +320,44 @@ markExported($conn, $case_id, 'SUMMONS');
 
 // 128 barcode using Case ID as value
 if (!empty($case_id)) {
-    $barcodeX    = 10;   // left margin (mm)
-    $barcodeH    = 10;   // bar height (mm)
-    $barcodeNarW = 0.30; // narrow module width (mm)
-    // above the footer
-    $barcodeY = $pdf->GetPageHeight() - 20;
+    $barcodeH    = 10;    // bar height (mm)
+    $barcodeNarW = 0.28;  // narrow module width (mm)
+    // Code 128B bit count: START(11) + chars×11 + checksum(11) + STOP(13)
+    $barcodeBits  = 35 + strlen($case_id) * 11;
+    $barcodeW     = $barcodeBits * $barcodeNarW;
+    $barcodeX = $pdf->GetPageWidth() - $barcodeW - 10;
+    $barcodeY = $pdf->GetPageHeight() - 22;
     draw_code128($pdf, $case_id, $barcodeX, $barcodeY, $barcodeH, $barcodeNarW);
 }
 
-// Capture PDF string FIRST — only set flags if generation succeeds
+// Mark summons as done so workflow unlocks Notice of Hearing
+$conn->query("UPDATE blotter_cases SET summons_done=1 WHERE case_id='".mysqli_real_escape_string($conn,$case_id)."' AND (summons_done IS NULL OR summons_done=0)");
+// Auto-advance status to Ongoing when summons is exported
+$conn->query("UPDATE blotter_cases SET status='Ongoing' WHERE case_id='".mysqli_real_escape_string($conn,$case_id)."' AND status='Pending'");
+auditLog($conn,'EXPORT_SUMMONS',$case_id,'Summons PDF exported');
+
 $savedBy = currentUser() ? currentUser()['full_name'] : 'Unknown';
 
+$stmtSave = $conn->prepare("
+    INSERT INTO case_summons
+        (case_id, to_name, hearing_day, hearing_mo, hearing_yr, hearing_time,
+         this_day, this_mo, this_yr,
+         or_respondent, or_day, or_mo, or_yr,
+         or_opt1, or_opt2, or_opt3, or_name3, or_opt4, or_name4,
+         saved_by)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ON DUPLICATE KEY UPDATE
+        to_name=VALUES(to_name), hearing_day=VALUES(hearing_day),
+        hearing_mo=VALUES(hearing_mo), hearing_yr=VALUES(hearing_yr),
+        hearing_time=VALUES(hearing_time),
+        this_day=VALUES(this_day), this_mo=VALUES(this_mo), this_yr=VALUES(this_yr),
+        or_respondent=VALUES(or_respondent), or_day=VALUES(or_day),
+        or_mo=VALUES(or_mo), or_yr=VALUES(or_yr),
+        or_opt1=VALUES(or_opt1), or_opt2=VALUES(or_opt2),
+        or_opt3=VALUES(or_opt3), or_name3=VALUES(or_name3),
+        or_opt4=VALUES(or_opt4), or_name4=VALUES(or_name4),
+        saved_by=VALUES(saved_by), updated_at=NOW()
+");
 $or_respondent = $_POST['or_respondent'] ?? '';
 $or_day        = $_POST['or_day']        ?? '';
 $or_mo         = $_POST['or_mo']         ?? '';
@@ -311,61 +368,28 @@ $or_opt3       = $_POST['or_opt3']       ?? '';
 $or_name3      = $_POST['or_name3']      ?? '';
 $or_opt4       = $_POST['or_opt4']       ?? '';
 $or_name4      = $_POST['or_name4']      ?? '';
-
-$pdfString = $pdf->Output('S', 'brgy409_summons_'.preg_replace('/[^A-Za-z0-9\-]/','',$case_id).'.pdf');
-
-if (!empty($pdfString)) {
-    // Mark summons as done so workflow unlocks Notice of Hearing
-    $stmtSumDone = $conn->prepare("UPDATE blotter_cases SET summons_done=1 WHERE case_id=? AND (summons_done IS NULL OR summons_done=0)");
-    $stmtSumDone->bind_param('s', $case_id);
-    $stmtSumDone->execute();
-    // Auto-advance status to Ongoing when summons is exported
-    $stmtOngoing = $conn->prepare("UPDATE blotter_cases SET status='Ongoing' WHERE case_id=? AND status='Pending'");
-    $stmtOngoing->bind_param('s', $case_id);
-    $stmtOngoing->execute();
-    auditLog($conn,'EXPORT_SUMMONS',$case_id,'Summons PDF exported');
-
-    $stmtSave = $conn->prepare("
-        INSERT INTO case_summons
-            (case_id, to_name, hearing_day, hearing_mo, hearing_yr, hearing_time,
-             this_day, this_mo, this_yr,
-             or_respondent, or_day, or_mo, or_yr,
-             or_opt1, or_opt2, or_opt3, or_name3, or_opt4, or_name4,
-             saved_by)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-        ON DUPLICATE KEY UPDATE
-            to_name=VALUES(to_name), hearing_day=VALUES(hearing_day),
-            hearing_mo=VALUES(hearing_mo), hearing_yr=VALUES(hearing_yr),
-            hearing_time=VALUES(hearing_time),
-            this_day=VALUES(this_day), this_mo=VALUES(this_mo), this_yr=VALUES(this_yr),
-            or_respondent=VALUES(or_respondent), or_day=VALUES(or_day),
-            or_mo=VALUES(or_mo), or_yr=VALUES(or_yr),
-            or_opt1=VALUES(or_opt1), or_opt2=VALUES(or_opt2),
-            or_opt3=VALUES(or_opt3), or_name3=VALUES(or_name3),
-            or_opt4=VALUES(or_opt4), or_name4=VALUES(or_name4),
-            saved_by=VALUES(saved_by), updated_at=NOW()
-    ");
-    $stmtSave->bind_param('ssssssssssssssssssss',
-        $case_id, $to_name, $hearing_day, $hearing_mo, $hearing_yr, $hearing_time,
-        $this_day, $this_mo, $this_yr,
-        $or_respondent, $or_day, $or_mo, $or_yr,
-        $or_opt1, $or_opt2, $or_opt3, $or_name3, $or_opt4, $or_name4,
-        $savedBy
-    );
-    $stmtSave->execute();
-
-    // Send the PDF to the browser
-    header('Content-Type: application/pdf');
-    $pdfFilename = 'brgy409_summons_' . preg_replace('/[^A-Za-z0-9\-]/', '', $case_id) . '.pdf';
-    header('Content-Disposition: inline; filename=' . $pdfFilename);
-    header('Content-Length: ' . strlen($pdfString));
-    echo $pdfString;
-} else {
-    http_response_code(500);
-    header('Content-Type: text/html; charset=utf-8');
-    echo '<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:3rem;">
-    <h2 style="color:#991b1b;">&#9888; PDF Generation Failed</h2>
-    <p>The PDF could not be generated. No workflow flags were changed.</p>
-    <p><a href="javascript:history.back()">Go back</a></p></body></html>';
-}
+$stmtSave->bind_param('ssssssssssssssssssss',
+    $case_id,
+    $to_name,
+    $hearing_day,
+    $hearing_mo,
+    $hearing_yr,
+    $hearing_time,
+    $this_day,
+    $this_mo,
+    $this_yr,
+    $or_respondent,
+    $or_day,
+    $or_mo,
+    $or_yr,
+    $or_opt1,
+    $or_opt2,
+    $or_opt3,
+    $or_name3,
+    $or_opt4,
+    $or_name4,
+    $savedBy
+);
+$stmtSave->execute();
+$pdf->Output('I', 'brgy410_summons_'.preg_replace('/[^A-Za-z0-9\-]/','',$case_id).'.pdf');
 exit;

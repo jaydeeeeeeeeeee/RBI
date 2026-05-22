@@ -203,8 +203,8 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif}
 /* Layered background */
 .bg-img{
   position:absolute;inset:0;z-index:0;
-  background:url('assets/images/Slideshow1.jpg') center/cover no-repeat;
-  opacity:.05;
+  background:url('images/Barangay_officials_410.png') center center/cover no-repeat;
+  opacity:.12;
 }
 .bg-overlay{
   position:absolute;inset:0;z-index:1;
@@ -235,7 +235,15 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif}
   position:relative;z-index:2;
   flex:0 0 50%;display:flex;flex-direction:column;
   justify-content:center;padding:2.5rem 3.5rem;
+  overflow:hidden;
 }
+.left-panel::before{
+  content:'';position:absolute;inset:0;z-index:0;
+  background:url('images/Brgy410_officials2.png') center center/cover no-repeat;
+  opacity:.08;
+  pointer-events:none;
+}
+.left-panel > *{position:relative;z-index:1;}
 
 /* ── LOGO BLOCK ──────────────────────────────────────────────────────────── */
 .lp-logo{
@@ -244,9 +252,8 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif}
 }
 .logo-mark{
   position:relative;width:72px;height:72px;border-radius:20px;flex-shrink:0;
-  background:linear-gradient(145deg,var(--blue),var(--teal));
+  background:#fff;
   display:flex;align-items:center;justify-content:center;
-  font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#fff;
   box-shadow:0 10px 32px rgba(59,130,246,.4),0 0 0 1px rgba(255,255,255,.12);
   overflow:hidden;
 }
@@ -387,16 +394,12 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif}
 /* Project slides */
 .proj-slide{display:flex;flex-direction:column;gap:.8rem;height:100%}
 .proj-img{
-  width:100%;flex:0 0 128px;border-radius:13px;overflow:hidden;
-  background:linear-gradient(135deg,#1a3254,#0d1f3c);
+  width:100%;border-radius:13px;overflow:hidden;
+  background:#0d1f3c;
   display:flex;align-items:center;justify-content:center;
-  color:rgba(255,255,255,.15);font-size:3rem;position:relative;
+  position:relative;
 }
-.proj-img::after{
-  content:'';position:absolute;inset:0;
-  background:linear-gradient(to bottom,transparent 35%,rgba(0,0,0,.45));
-}
-.proj-img img{width:100%;height:100%;object-fit:cover;display:block}
+.proj-img img{width:100%;height:auto;object-fit:contain;display:block;border-radius:13px;}
 .proj-badge{
   display:inline-flex;align-items:center;gap:5px;
   font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
@@ -409,7 +412,7 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif}
   font-family:'Syne',sans-serif;font-size:13.5px;font-weight:800;
   color:#fff;margin-top:3px;line-height:1.25;
 }
-.proj-desc{font-size:11px;color:rgba(255,255,255,.4);line-height:1.68}
+.proj-desc{font-size:12.5px;color:rgba(255,255,255,.55);line-height:1.75}
 .proj-footer{
   margin-top:auto;padding-top:.6rem;border-top:1px solid rgba(255,255,255,.07);
   font-size:10px;color:rgba(255,255,255,.25);display:flex;align-items:center;gap:5px;
@@ -423,7 +426,8 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif}
 .modal-overlay.open{opacity:1;pointer-events:all}
 .modal-box{
   position:fixed;top:50%;left:50%;transform:translate(-50%,-54%);
-  width:100%;max-width:400px;background:#fff;border-radius:22px;
+  width:100%;max-width:400px;border-radius:22px;
+  background:#fff;
   padding:2rem 1.75rem;z-index:501;
   box-shadow:0 32px 100px rgba(0,0,0,.35);
   transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .25s;
@@ -439,10 +443,10 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif}
 .modal-close:hover{background:#fee2e2;color:#dc2626}
 .modal-logo{
   width:48px;height:48px;border-radius:13px;
-  background:linear-gradient(135deg,var(--blue),var(--teal));
+  background:#fff;
   display:flex;align-items:center;justify-content:center;
-  font-family:'Syne',sans-serif;font-size:14px;font-weight:800;color:#fff;
   margin-bottom:.9rem;box-shadow:0 6px 20px rgba(59,130,246,.28);
+  overflow:hidden;
 }
 .modal-title{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;color:#0f172a;margin-bottom:2px}
 .modal-sub{font-size:12px;color:#64748b;margin-bottom:1.25rem}
@@ -457,7 +461,7 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif}
   border-radius:10px;font-size:13px;font-family:'Inter',sans-serif;
   color:#0f172a;outline:none;transition:border .2s,box-shadow .2s;background:#f8fafc;
 }
-.form-input:focus{border-color:var(--blue);background:#fff;box-shadow:0 0 0 3px rgba(59,130,246,.1)}
+.form-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.1)}
 .form-input.has-eye{padding-right:40px}
 .eye-btn{
   position:absolute;right:7px;top:50%;transform:translateY(-50%);
@@ -518,7 +522,7 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif}
 
     <!-- Logo block -->
     <div class="lp-logo">
-      <div class="logo-mark">410</div>
+      <div class="logo-mark"><img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>
       <div>
         <span class="logo-name">iBarangay</span>
         <span class="logo-loc"><i class="fas fa-location-dot"></i> Manila City</span>
@@ -603,42 +607,48 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif}
           <div class="chart-wrap-inner"><canvas id="chartCivil"></canvas></div>
         </div>
 
-        <!-- Slide 5: Project — Road Rehabilitation -->
+        <!-- Slide 5: Green Initiative -->
         <div class="rslide" id="rslide-5">
           <div class="proj-slide">
-            <div class="proj-img"><i class="fas fa-road"></i></div>
+            <div class="proj-img">
+              <img src="images/achieve1.png" alt="Green Initiative">
+            </div>
             <div>
               <span class="proj-badge done"><i class="fas fa-circle-check"></i> Completed</span>
-              <div class="proj-title">Road Rehabilitation Project</div>
-              <p class="proj-desc">Full resurfacing of the main barangay road along P. Casal St., improving safety and accessibility for all residents and commuters.</p>
+              <div class="proj-title">Green Initiative Blossoms</div>
+              <p class="proj-desc">Barangay 410's Green Team launched a community tree-planting drive, transforming vacant lots into lush green spaces. Hundreds of residents joined hands to plant trees, clear pathways, and commit to a cleaner, more eco-friendly neighborhood for future generations.</p>
             </div>
-            <div class="proj-footer"><i class="fas fa-calendar-check"></i> Completed · 2023 · Funded by LGU Manila</div>
+            <div class="proj-footer"><i class="fas fa-calendar-check"></i> Completed · 2024 · Barangay 410 Environment Committee</div>
           </div>
         </div>
 
-        <!-- Slide 6: Project — Community Health Center -->
+        <!-- Slide 6: Youth Empowerment -->
         <div class="rslide" id="rslide-6">
           <div class="proj-slide">
-            <div class="proj-img" style="background:linear-gradient(135deg,#0f4c75,#1b6ca8)"><i class="fas fa-house-medical"></i></div>
+            <div class="proj-img">
+              <img src="images/achievement2.png" alt="Youth Empowerment">
+            </div>
             <div>
               <span class="proj-badge ongoing"><i class="fas fa-spinner"></i> Ongoing</span>
-              <div class="proj-title">Barangay Health Center Upgrade</div>
-              <p class="proj-desc">Renovation and equipment upgrade of the Barangay 410 Health Center to expand primary care capacity and accommodate more daily consultations.</p>
+              <div class="proj-title">Youth Empowerment Program</div>
+              <p class="proj-desc">A flagship initiative providing sports, educational, and leadership opportunities for the youth of Barangay 410. The program actively develops skills, builds confidence, and nurtures the next generation of community leaders who will drive positive change in District 4 and beyond.</p>
             </div>
-            <div class="proj-footer"><i class="fas fa-calendar"></i> In Progress · Target: Q3 2025</div>
+            <div class="proj-footer"><i class="fas fa-calendar"></i> Ongoing · 2024–2025 · District 4 Youth Affairs</div>
           </div>
         </div>
 
-        <!-- Slide 7: Project — Livelihood Program -->
+        <!-- Slide 7: Digital Literacy -->
         <div class="rslide" id="rslide-7">
           <div class="proj-slide">
-            <div class="proj-img" style="background:linear-gradient(135deg,#1a472a,#2d6a4f)"><i class="fas fa-seedling"></i></div>
-            <div>
-              <span class="proj-badge planned"><i class="fas fa-clock"></i> Planned</span>
-              <div class="proj-title">Livelihood &amp; Skills Training</div>
-              <p class="proj-desc">Free skills development program for unemployed and out-of-school youth — covering dressmaking, culinary arts, and basic electronics.</p>
+            <div class="proj-img">
+              <img src="images/achievement3.png" alt="Digital Literacy">
             </div>
-            <div class="proj-footer"><i class="fas fa-calendar"></i> Planned · Q4 2025 · TESDA Partnership</div>
+            <div>
+              <span class="proj-badge ongoing"><i class="fas fa-spinner"></i> Ongoing</span>
+              <div class="proj-title">Digital Literacy Workshops</div>
+              <p class="proj-desc">In partnership with local tech advocates, Barangay 410 conducts free digital literacy sessions covering online safety, basic computer proficiency, and e-government services. These workshops equip residents of all ages with essential digital skills, helping bridge the gap in an increasingly connected world.</p>
+            </div>
+            <div class="proj-footer"><i class="fas fa-calendar"></i> Ongoing · 2025 · Barangay 410 × Tech Partners</div>
           </div>
         </div>
 
@@ -651,7 +661,7 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif}
 <div class="modal-overlay" id="modalOverlay" onclick="closeLogin()"></div>
 <div class="modal-box" id="modalBox">
   <button class="modal-close" onclick="closeLogin()"><i class="fas fa-xmark"></i></button>
-  <div class="modal-logo">410</div>
+  <div class="modal-logo"><img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>
   <div class="modal-title">Login</div>
   <div class="modal-sub">iBarangay · Barangay 410, Manila City</div>
   <?php if($error === 'locked' || $isLocked):?>

@@ -142,7 +142,7 @@ function v2($r,$k){return htmlspecialchars($r[$k]??'');}
 <title>Residents – ProjectRBI</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-<link rel="stylesheet" href="assets/css/main.css"/>
+<link rel="stylesheet" href="assets/css/main.css?v=<?=filemtime(__DIR__.'/assets/css/main.css')?>"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
@@ -177,7 +177,7 @@ main{padding:1.5rem;max-width:1400px;margin:0 auto}
 .search-wrap i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px}
 .search-input{width:100%;min-width:180px;padding:9px 12px 9px 36px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;color:#0f172a;outline:none;transition:border .2s}
 .search-input:focus{border-color:#3b82f6}
-.filter-sel{padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;color:#0f172a;background:#fff;outline:none}
+.filter-sel{padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;color:#0f172a;outline:none}
 .filter-sel:focus{border-color:#3b82f6}
 .admin-tools-wrap{margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9;display:none}
 .stats-bar{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap}
@@ -186,7 +186,7 @@ main{padding:1.5rem;max-width:1400px;margin:0 auto}
 
 /* ── FAMILY TABLE ── */
 .family-block{background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:10px;overflow:hidden}
-.family-head-row{display:flex;align-items:center;gap:14px;padding:13px 18px;cursor:pointer;background:#fff;transition:background .15s;user-select:none}
+.family-head-row{display:flex;align-items:center;gap:14px;padding:13px 18px;cursor:pointer;transition:background .15s;user-select:none}
 .family-head-row:hover{background:#f8fafc}
 .family-head-row.is-hidden-row{opacity:.65;background:#f8fafc}
 .fav{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
@@ -243,6 +243,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
 .pw-eye{position:absolute;right:12px;background:none;border:none;cursor:pointer;
   color:#94a3b8;font-size:14px;padding:4px;transition:color .2s;z-index:2}
 .pw-eye:hover{color:#3b82f6}
+.topbar{position:sticky;top:0;z-index:200}
 </style>
 </head>
 <body>
@@ -250,12 +251,11 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
 <!-- TOPBAR -->
 <header class="topbar" style="gap:12px">
   <a href="Home.php" class="topbar-brand" style="flex-shrink:0">
-    <div class="topbar-logo">410</div>
+    <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0">
+      <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
+    </div>
     <div><div class="topbar-name">Barangay 410</div><div class="topbar-sub">Residents</div></div>
   </a>
-  <div style="display:flex;align-items:center;gap:6px;border-left:1px solid rgba(255,255,255,.12);padding-left:14px">
-    <span style="font-size:13px;font-weight:700;color:#fff;font-family:'Syne',sans-serif"><i class="fas fa-users" style="opacity:.8;margin-right:5px"></i> Residents</span>
-  </div>
   <div class="topbar-right" style="margin-left:auto">
     <?php if($is_guest): ?>
     <div class="unlock-info" style="background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.2)">
@@ -285,7 +285,11 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-head">
-    <div class="sidebar-head-brand"><div class="sidebar-head-logo">410</div><div><div class="sidebar-head-title">ProjectRBI</div><div class="sidebar-head-sub">Barangay 410 · Manila</div></div></div>
+    <div class="sidebar-head-brand">
+      <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;flex-shrink:0">
+        <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
+      </div>
+      <div><div class="sidebar-head-title">ProjectRBI</div><div class="sidebar-head-sub">Barangay 410 · Manila</div></div></div>
     <button class="sidebar-close-btn" onclick="closeSidebar()"><i class="fas fa-times"></i></button>
   </div>
   <div style="padding:14px 12px 6px">
@@ -304,7 +308,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
     <div class="sidebar-label">Modules</div>
     <a href="RBI.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-clipboard-list"></i></span> RBI Report</a>
     <a href="data_tracking.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-database"></i></span> Document Tracking</a>
-    <a href="../eBlotter/eblotter_home.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-shield-halved"></i></span> E-Blotter</a>
+    <a href="eBlotter/eblotter_home.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-shield-halved"></i></span> E-Blotter</a>
     <a href="equipment.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-box-archive"></i></span> Equipment Borrowing</a>
     <a href="senior_citizen.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-person-cane"></i></span> Senior Citizens</a>
   </div>
@@ -336,7 +340,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
         <div><div style="font-size:13px;font-weight:600;color:#fff">Dark Mode</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Toggle dark/light theme</div></div>
       </div>
       <button id="darkToggle" onclick="toggleDarkMode()" style="width:42px;height:24px;border-radius:12px;background:#475569;border:none;cursor:pointer;position:relative;transition:background .25s;flex-shrink:0">
-        <span id="darkThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .25s"></span>
+        <span id="darkThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;transition:left .25s"></span>
       </button>
     </div>
     <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:12px 14px;margin-bottom:16px">
@@ -367,7 +371,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
       </div>
       <a href="Display_List.php?<?=http_build_query(array_merge($_GET,['show_hidden'=>$show_hidden?'0':'1']))?>"
         style="width:42px;height:24px;border-radius:12px;background:<?=$show_hidden?'#3b82f6':'#475569'?>;display:flex;align-items:center;justify-content:flex-<?=$show_hidden?'end':'start'?>;padding:3px;text-decoration:none;transition:all .2s;flex-shrink:0">
-        <span style="width:18px;height:18px;border-radius:50%;background:#fff;display:block"></span>
+        <span style="width:18px;height:18px;border-radius:50%;display:block"></span>
       </a>
     </div>
 
@@ -439,6 +443,13 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
   <?php endif;?>
 </div>
 
+<div style="background:linear-gradient(to right,rgba(15,23,42,.9),rgba(15,23,42,.65)),url('images/Barangay_officials_410.png') center 60%/cover no-repeat;padding:2rem 2rem">
+  <div style="max-width:1200px;margin:0 auto">
+    <h1 style="font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;color:#fff;margin:0 0 .25rem"><i class="fas fa-users" style="margin-right:.5rem;opacity:.8"></i>Residents List</h1>
+    <p style="color:rgba(255,255,255,.6);font-size:.84rem;margin:0">Barangay 410 Zone 42 · District IV, City of Manila</p>
+  </div>
+</div>
+
 <main>
 <?php if(!$list_unlocked && !$is_guest): ?>
   <!-- ── PASSWORD GATE ── -->
@@ -498,7 +509,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
 
   <!-- ── ALERTS ── -->
   <?php if(isset($_GET['registered'])):?><div class="alert alert-success" style="margin-bottom:1rem"><i class="fas fa-check-circle"></i> Resident registered successfully!</div><?php endif;?>
-  <?php if(isset($_GET['import'])&&$_GET['import']==='success'):?><div class="alert alert-success" style="margin-bottom:1rem"><i class="fas fa-check-circle"></i> CSV imported successfully!</div><?php endif;?>
+  <?php if(isset($_GET['import'])&&$_GET['import']==='success'):$_ic=(int)($_GET['count']??0);?><div class="alert alert-success" style="margin-bottom:1rem"><i class="fas fa-check-circle"></i> CSV imported successfully!<?=($_ic>0?" <strong>$_ic</strong> resident(s) added.":'')?>  <?=(isset($_GET['duplicates_removed'])?' Duplicate entries were automatically removed.':'')?></div><?php endif;?>
 
   <!-- ── TOOLBAR ── -->
   <div class="toolbar-card">
@@ -653,6 +664,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
               <?php if($can_edit): ?>
               <button class="btn btn-primary btn-sm" onclick="location.href='Edit.php?id=<?=$head['id']?>'"><i class="fas fa-pen"></i> Edit Head</button>
               <?php endif; ?>
+              <button class="btn btn-outline btn-sm" onclick="location.href='data_tracking.php?tab=cert_requests&prefill_id=<?=$head['id']?>&prefill_name=<?=urlencode(trim($head['first_name'].' '.$head['last_name']))?>'"><i class="fas fa-file-alt"></i> Request Cert.</button>
               <button class="btn btn-outline btn-sm" onclick="printRes(<?=$head['id']?>)"><i class="fas fa-print"></i> Print</button>
               <?php if($can_edit): ?>
               <button class="btn btn-danger btn-sm" style="color:#92400e;background:#fffbeb;border-color:#fde68a" onclick="if(confirm('Archive this head of family?'))location.href='Delete.php?id=<?=$head['id']?>'"><i class="fas fa-archive"></i> Archive</button>
@@ -710,6 +722,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
               <?php if($can_edit): ?>
               <button class="btn btn-outline btn-sm" onclick="location.href='Edit.php?id=<?=$mem['id']?>'"><i class="fas fa-pen"></i> Edit</button>
               <?php endif; ?>
+              <button class="btn btn-outline btn-sm" onclick="location.href='data_tracking.php?tab=cert_requests&prefill_id=<?=$mem['id']?>&prefill_name=<?=urlencode(trim($mem['first_name'].' '.$mem['last_name']))?>'"><i class="fas fa-file-alt"></i> Request Cert.</button>
               <button class="btn btn-outline btn-sm" onclick="printRes(<?=$mem['id']?>)"><i class="fas fa-print"></i> Print</button>
               <?php if($can_edit): ?>
               <button class="btn btn-danger btn-sm" style="color:#92400e;background:#fffbeb;border-color:#fde68a" onclick="if(confirm('Archive?'))location.href='Delete.php?id=<?=$mem['id']?>'"><i class="fas fa-archive"></i> Archive</button>
@@ -739,7 +752,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
         <i class="fas fa-map-pin"></i> Geocode Addresses
       </button>
     </div>
-    <div id="geocodeProgress" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 14px;margin-bottom:10px">
+    <div id="geocodeProgress" style="display:none;border:1px solid #e2e8f0;border-radius:10px;padding:10px 14px;margin-bottom:10px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
         <span id="geocodeProgressText" style="font-size:12px;color:#475569">Starting…</span>
         <button onclick="stopGeocode()" style="background:none;border:none;color:#f43f5e;cursor:pointer;font-size:11px;font-weight:600"><i class="fas fa-stop"></i> Stop</button>
@@ -1138,3 +1151,10 @@ function resetZoom(){zoomLvl=1;localStorage.setItem('rbi_zoom','1');applyZoom();
 </script>
 </body>
 </html>
+
+
+
+
+
+
+

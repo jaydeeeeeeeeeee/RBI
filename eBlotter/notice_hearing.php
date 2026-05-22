@@ -1,10 +1,24 @@
-<?php
+﻿<?php
 require_once __DIR__.'/auth.php';
 requireRole(['chairperson','secretary']); // documents: kagawad cannot access
 
 $case_id = trim($_GET['case_id'] ?? '');
 $noticeExported = isset($_GET['exported']) && $_GET['exported'] === '1';
 
+// auth.php; fallback for safety
+if (!function_exists("verifyCurrentUserOrChairPassword")) {
+    function verifyCurrentUserOrChairPassword(mysqli $conn, string $attempt): bool {
+        if (isChairperson()) {
+            $uid = currentUser()['id'];
+            $s = $conn->prepare("SELECT password FROM admins WHERE id=? LIMIT 1");
+            if (!$s) return false;
+            $s->bind_param('i', $uid); $s->execute();
+            $row = $s->get_result()->fetch_assoc();
+            return $row && password_verify($attempt, $row['password']);
+        }
+        return verifyChairpersonPassword($conn, $attempt);
+    }
+}
 // Password gate
 $_pwGateOk = false;
 $docPwError = '';
@@ -35,7 +49,9 @@ if ($case_id) {
     $stmtSN->execute();
     $savedNotice = $stmtSN->get_result()->fetch_assoc();
 }
-// sv_saved() is defined in auth.php
+function sv_n($saved, $key, $fallback='') {
+    return htmlspecialchars($saved[$key] ?? $fallback);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -43,15 +59,16 @@ if ($case_id) {
   <meta charset="UTF-8">
   <title>Notice of Hearing — eBlotter</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="eblotter.css">
+  <link rel="stylesheet" href="../assets/css/main.css?v=<?=filemtime(dirname(__DIR__).'/assets/css/main.css')?>">
+  <link rel="stylesheet" href="eblotter.css?v=<?=filemtime(__DIR__.'/eblotter.css')?>">
   <style>
-    .doc-container{max-width:680px;margin:2rem auto;background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
+    .doc-container{max-width:680px;margin:2rem auto;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
     .doc-toolbar{background:var(--navy);padding:.85rem 1.25rem;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;}
     .doc-toolbar select{border-radius:6px;border:none;padding:.4rem .7rem;font-family:inherit;font-size:.84rem;flex:1;min-width:180px;}
 
-    .doc-body{font-family:'Times New Roman',Times,serif;background:#fff;}
+    .doc-body{font-family:'Times New Roman',Times,serif;}
 
     /* One half-page copy — matching physical form */
     .notice-copy{padding:1cm 1.6cm 0.6cm;}
@@ -92,7 +109,7 @@ if ($case_id) {
       text-align: center;
     }
     .pw-gate-modal .lock-icon { font-size: 2.5rem; color: var(--navy); margin-bottom: 1rem; }
-    .pw-gate-modal h3 { font-family: 'DM Serif Display',serif; font-size: 1.25rem; color: var(--navy); margin-bottom: .35rem; }
+    .pw-gate-modal h3 { font-family: 'Syne',sans-serif; font-size: 1.25rem; color: var(--navy); margin-bottom: .35rem; }
     .pw-gate-modal p { font-size: .85rem; color: var(--gray400); margin-bottom: 1.25rem; }
     .pw-gate-modal input {
       width: 100%; border: 1.5px solid var(--gray200); border-radius: 9px;
@@ -104,6 +121,13 @@ if ($case_id) {
   </style>
 </head>
 <body>
+<?php
+$hero_mode   = true;
+$hero_title  = 'Notice of Hearing';
+$hero_active = 'view';
+include '_eb_topbar.php';
+include '_eb_hero.php';
+?>
 
 <!-- PASSWORD GATE OVERLAY -->
 <?php if (!$_pwGateOk): ?>
@@ -126,35 +150,8 @@ if ($case_id) {
 </div>
 <style>body { overflow: hidden; }</style>
 <?php endif; ?>
-<nav class="eb-navbar">
-  <a class="brand" href="eblotter_home.php">
-    <img src="../eBlotter/images/Barangay_logo_409.png" alt="Logo">Barangay 409</a>
-  <?php $u=currentUser(); if($u): ?>
-  <div style="display:flex;align-items:center;gap:.5rem;margin-left:auto;margin-right:3.5rem;font-size:.75rem;color:rgba(255,255,255,.6);">
-    <?php
-      $rIcons=['chairperson'=>'fas fa-crown','secretary'=>'fas fa-user-tie','kagawad'=>'fas fa-user'];
-      $rColors=['chairperson'=>'#fbbf24','secretary'=>'#34d399','kagawad'=>'#60a5fa'];
-      $role=$u['role'];
-      echo "<i class='{$rIcons[$role]}' style='color:{$rColors[$role]};margin-right:4px'></i>";
-      echo htmlspecialchars($u['full_name'])." (".ucfirst($role).")";
-    ?>
-    &nbsp;<a href="logout.php" style="color:rgba(255,255,255,.4);text-decoration:none;"><i class="fas fa-sign-out-alt"></i></a>
-  </div>
-  <?php endif; ?>
-</nav>
-<div class="hero-banner">
-  <div class="inner">
-    <h1>Notice of Hearing</h1>
-    <p>Barangay 409 Case Management System — City of Manila, District IV</p>
-    <div class="hero-actions">
-      <a href="eblotter_home.php" class="ha-btn"><i class="fas fa-home"></i> Home</a>
-      <a href="add_case.php"      class="ha-btn"><i class="fas fa-plus-circle"></i> Add Record</a>
-      <a href="view_cases.php"    class="ha-btn"><i class="fas fa-list"></i> View Records</a>
-    </div>
-  </div>
-</div>
 
-<main class="eb-main">
+<main style="padding:1.5rem;max-width:1100px;margin:0 auto">
 
 <?php if ($noticeExported): ?>
 <div id="noticeSuccessBanner" style="
@@ -221,7 +218,6 @@ if ($case_id) {
 
   <form id="draftForm" method="post" action="save_draft.php" style="display:none;">
     <input type="hidden" name="doc_type"  value="notice">
-    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrfToken()) ?>">
     <input type="hidden" name="case_id"   value="<?= htmlspecialchars($case_id) ?>">
     <input type="hidden" name="hear_day"  id="draftHDay">
     <input type="hidden" name="hear_mo"   id="draftHMo">
@@ -250,9 +246,9 @@ if ($case_id) {
     <div class="notice-copy">
       <div class="notice-head">
         <p>Republic of the Philippines</p>
-        <p>Province of Sampaloc</p>
+        <p>Province of Tondo</p>
         <p>City of Manila</p>
-        <p>Barangay 409 Zone 42</p>
+        <p><?= defined('BRGY_FULLNAME') ? htmlspecialchars(BRGY_FULLNAME) : 'Barangay 410 Zone 42' ?></p>
         <div class="office-t">Office of the Lupong Tagapamayapa</div>
         <div class="main-t">NOTICE OF HEARING</div>
         <div class="sub-t">(MEDIATION PROCEEDINGS)</div>
@@ -261,7 +257,7 @@ if ($case_id) {
       <div class="to-block">
         <div class="to-row">
           To:&nbsp;<div style="display:inline-flex;flex-direction:column;align-items:center;">
-            <input type="text" class="to-line" id="toField<?=$copy?>" value="<?= sv_saved($savedNotice,'to_name',$cFull) ?>" style="text-align:center;">
+            <input type="text" class="to-line" id="toField<?=$copy?>" value="<?= sv_n($savedNotice,'to_name',$cFull) ?>" style="text-align:center;">
             <span class="to-sub">Complainant/s</span>
           </div>
         </div>
@@ -269,10 +265,10 @@ if ($case_id) {
 
       <div class="notice-body">
         &nbsp;&nbsp;&nbsp;&nbsp;You are hereby required to appear before me on the
-        <input class="il" id="dayIn<?=$copy?>" placeholder="________" style="min-width:1.8cm;" value="<?= sv_saved($savedNotice,'hear_day') ?>"> day of
-        <input class="il" id="moIn<?=$copy?>"  placeholder="____________" style="min-width:3.5cm;" value="<?= sv_saved($savedNotice,'hear_mo') ?>">,
-        <strong>20</strong><input class="il" id="yrIn<?=$copy?>" placeholder="__" style="min-width:0.9cm;" value="<?= sv_saved($savedNotice,'hear_yr') ?>">
-        at <input class="il" id="timeIn<?=$copy?>" placeholder="______" style="min-width:1.5cm;" value="<?= sv_saved($savedNotice,'hear_time') ?>"> am/pm for the hearing of your complaint.
+        <input class="il" id="dayIn<?=$copy?>" placeholder="________" style="min-width:1.8cm;" value="<?= sv_n($savedNotice,'hear_day') ?>"> day of
+        <input class="il" id="moIn<?=$copy?>"  placeholder="____________" style="min-width:3.5cm;" value="<?= sv_n($savedNotice,'hear_mo') ?>">,
+        <strong>20</strong><input class="il" id="yrIn<?=$copy?>" placeholder="__" style="min-width:0.9cm;" value="<?= sv_n($savedNotice,'hear_yr') ?>">
+        at <input class="il" id="timeIn<?=$copy?>" placeholder="______" style="min-width:1.5cm;" value="<?= sv_n($savedNotice,'hear_time') ?>"> am/pm for the hearing of your complaint.
       </div>
 
       <div class="sig-right">
@@ -282,9 +278,9 @@ if ($case_id) {
       </div>
 
       <div class="notif-line">
-        Notified this <input class="il" id="notifDay<?=$copy?>" placeholder="________" style="min-width:1.8cm;" value="<?= sv_saved($savedNotice,'notif_day') ?>"> day of
-        <input class="il" id="notifMo<?=$copy?>" placeholder="____________" style="min-width:3.5cm;" value="<?= sv_saved($savedNotice,'notif_mo') ?>">,
-        20<input class="il" id="notifYr<?=$copy?>" placeholder="__" style="min-width:0.9cm;" value="<?= sv_saved($savedNotice,'notif_yr') ?>">.
+        Notified this <input class="il" id="notifDay<?=$copy?>" placeholder="________" style="min-width:1.8cm;" value="<?= sv_n($savedNotice,'notif_day') ?>"> day of
+        <input class="il" id="notifMo<?=$copy?>" placeholder="____________" style="min-width:3.5cm;" value="<?= sv_n($savedNotice,'notif_mo') ?>">,
+        20<input class="il" id="notifYr<?=$copy?>" placeholder="__" style="min-width:0.9cm;" value="<?= sv_n($savedNotice,'notif_yr') ?>">.
       </div>
     </div>
     <?php if($copy===1): ?><hr class="copy-sep"><?php endif; ?>
@@ -309,7 +305,6 @@ function saveDraft() {
 
   fetch('save_draft.php', {
     method: 'POST',
-    credentials: 'same-origin',
     body: new FormData(document.getElementById('draftForm'))
   }).then(r => r.json()).then(data => {
     btn.disabled = false;
@@ -400,6 +395,6 @@ document.getElementById('exportPwInput')?.addEventListener('keydown', function(e
     </div>
   </div>
 </div>
-
+<?php include '_eb_footer.php'; ?>
 </body>
 </html>

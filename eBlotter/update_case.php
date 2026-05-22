@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__.'/auth.php';
 requireRole(['chairperson','secretary']);
 
@@ -7,6 +7,21 @@ function status_chip($s){ return match($s){'Ongoing'=>'chip-ongoing','Resolved'=
 
 $rIcons  = ['chairperson'=>'fas fa-crown','secretary'=>'fas fa-user-tie','kagawad'=>'fas fa-user'];
 $rColors = ['chairperson'=>'#fbbf24','secretary'=>'#34d399','kagawad'=>'#60a5fa'];
+
+// auth.php; fallback for safety
+if (!function_exists('verifyCurrentUserOrChairPassword')) {
+    function verifyCurrentUserOrChairPassword(mysqli $conn, string $attempt): bool {
+        if (isChairperson()) {
+            $uid = currentUser()['id'];
+            $s = $conn->prepare("SELECT password FROM admins WHERE id=? LIMIT 1");
+            if (!$s) return false;
+            $s->bind_param('i', $uid); $s->execute();
+            $row = $s->get_result()->fetch_assoc();
+            return $row && password_verify($attempt, $row['password']);
+        }
+        return verifyChairpersonPassword($conn, $attempt);
+    }
+}
 
 $case_id   = trim($_GET['case_id'] ?? $_POST['case_id'] ?? '');
 $errors    = [];
@@ -24,7 +39,7 @@ if (empty($case_id) && $_SERVER['REQUEST_METHOD'] === 'GET') {
     if ($q !== '') $sql .= " WHERE CONCAT(complainant_last,' ',complainant_first,' ',respondent_last,' ',respondent_first,' ',case_id) LIKE ?";
     $sql .= " ORDER BY created_at DESC LIMIT 100";
     $stmt = $conn->prepare($sql);
-    if ($q !== '') { $like = '%' . str_replace(['%','_'],['\%','\_'],$q) . '%'; $stmt->bind_param('s', $like); }
+    if ($q !== '') { $like = "%$q%"; $stmt->bind_param('s', $like); }
     $stmt->execute();
     $cases = $stmt->get_result();
     $active_page = 'update';
@@ -35,9 +50,10 @@ if (empty($case_id) && $_SERVER['REQUEST_METHOD'] === 'GET') {
 <head>
   <meta charset="UTF-8"><title>Update Record - eBlotter</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="eblotter.css">
+  <link rel="stylesheet" href="../assets/css/main.css?v=<?=filemtime(dirname(__DIR__).'/assets/css/main.css')?>">
+  <link rel="stylesheet" href="eblotter.css?v=<?=filemtime(__DIR__.'/eblotter.css')?>">
   <style>
     .search-bar{display:flex;gap:.6rem;align-items:center;background:var(--white);border-radius:var(--radius);padding:1rem 1.25rem;box-shadow:var(--shadow);margin-bottom:1.25rem;flex-wrap:wrap;}
     .search-bar input{border:1.5px solid var(--gray200);border-radius:999px;padding:.5rem 1rem;font-family:inherit;font-size:.88rem;flex:1;min-width:200px;outline:none;}
@@ -46,31 +62,14 @@ if (empty($case_id) && $_SERVER['REQUEST_METHOD'] === 'GET') {
 </head>
 <body>
 
-<nav class="eb-navbar">
-  <a class="brand" href="eblotter_home.php"><img src="../eBlotter/images/Barangay_logo_409.png" alt="Logo">Barangay 409</a>
-  <?php if($u): ?>
-  <div style="display:flex;align-items:center;gap:.5rem;margin-left:auto;margin-right:3.5rem;font-size:.75rem;color:rgba(255,255,255,.6);">
-    <?php
-      $role=$u['role'];
-      echo "<i class='{$rIcons[$role]}' style='color:{$rColors[$role]};margin-right:4px'></i>";
-      echo htmlspecialchars($u['full_name']).' ('.ucfirst($role).')';
-    ?>
-    &nbsp;<a href="logout.php" style="color:rgba(255,255,255,.4);text-decoration:none;"><i class="fas fa-sign-out-alt"></i></a>
-  </div>
-  <?php endif; ?>
-</nav>
-<div class="hero-banner">
-  <div class="inner">
-    <h1>Update Record</h1>
-    <p>Barangay 409 Case Management System — City of Manila, District IV</p>
-    <div class="hero-actions">
-      <a href="eblotter_home.php" class="ha-btn"><i class="fas fa-home"></i> Home</a>
-      <a href="add_case.php"      class="ha-btn"><i class="fas fa-plus-circle"></i> Add Record</a>
-      <a href="view_cases.php"    class="ha-btn"><i class="fas fa-list"></i> View Records</a>
-    </div>
-  </div>
-</div>
-<main class="eb-main">
+<?php
+$hero_mode    = true;
+$hero_title   = 'Update Record';
+$hero_active  = 'update';
+include '_eb_topbar.php';
+include '_eb_hero.php';
+?>
+<main style="padding:1.5rem;max-width:1100px;margin:0 auto">
   <form method="get" class="search-bar">
     <i class="fas fa-search" style="color:var(--gray400)"></i>
     <input type="search" name="q" placeholder="Search by name or ID…" value="<?= htmlspecialchars($q) ?>">
@@ -109,6 +108,7 @@ if (empty($case_id) && $_SERVER['REQUEST_METHOD'] === 'GET') {
     </table>
   </div>
 </main>
+<?php include '_eb_footer.php'; ?>
 </body>
 </html>
 <?php
@@ -125,14 +125,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($case_id)) {
 <head>
   <meta charset="UTF-8"><title>Update Record - Authorization</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="eblotter.css">
+  <link rel="stylesheet" href="../assets/css/main.css?v=<?=filemtime(dirname(__DIR__).'/assets/css/main.css')?>">
+  <link rel="stylesheet" href="eblotter.css?v=<?=filemtime(__DIR__.'/eblotter.css')?>">
   <style>
     .gate-wrap{min-height:calc(100vh - 220px);display:flex;align-items:center;justify-content:center;padding:2rem 1rem;}
     .gate-card{background:#fff;border-radius:18px;box-shadow:0 8px 40px rgba(27,38,59,.15);padding:2.5rem 2rem;width:100%;max-width:420px;text-align:center;}
     .gate-icon{width:72px;height:72px;background:linear-gradient(135deg,#1b263b,#2563eb);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;font-size:1.75rem;color:#fff;}
-    .gate-card h2{font-family:'DM Serif Display',serif;font-size:1.45rem;color:var(--navy);margin-bottom:.35rem;}
+    .gate-card h2{font-family:'Syne',sans-serif;font-size:1.45rem;color:var(--navy);margin-bottom:.35rem;}
     .gate-card p{font-size:.84rem;color:var(--gray400);margin-bottom:1.5rem;line-height:1.6;}
     .gate-field{position:relative;margin-bottom:1rem;}
     .gate-field i{position:absolute;left:.9rem;top:50%;transform:translateY(-50%);color:var(--gray400);pointer-events:none;}
@@ -148,29 +149,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($case_id)) {
 </head>
 <body>
 
-<nav class="eb-navbar">
-  <a class="brand" href="eblotter_home.php"><img src="../eBlotter/images/Barangay_logo_409.png" alt="Logo">Barangay 409</a>
-  <?php if($u): ?>
-  <div style="display:flex;align-items:center;gap:.5rem;margin-left:auto;margin-right:3.5rem;font-size:.75rem;color:rgba(255,255,255,.6);">
-    <?php $role=$u['role'];
-      echo "<i class='{$rIcons[$role]}' style='color:{$rColors[$role]};margin-right:4px'></i>";
-      echo htmlspecialchars($u['full_name']).' ('.ucfirst($role).')';
-    ?>
-    &nbsp;<a href="logout.php" style="color:rgba(255,255,255,.4);text-decoration:none;"><i class="fas fa-sign-out-alt"></i></a>
-  </div>
-  <?php endif; ?>
-</nav>
-<div class="hero-banner">
-  <div class="inner">
-    <h1>Update Record</h1>
-    <p>Barangay 409 Case Management System — City of Manila, District IV</p>
-    <div class="hero-actions">
-      <a href="eblotter_home.php" class="ha-btn"><i class="fas fa-home"></i> Home</a>
-      <a href="add_case.php"      class="ha-btn"><i class="fas fa-plus-circle"></i> Add Record</a>
-      <a href="view_cases.php"    class="ha-btn"><i class="fas fa-list"></i> View Records</a>
-    </div>
-  </div>
-</div>
+<?php
+$hero_mode    = true;
+$hero_title   = 'Update Record';
+$hero_active  = 'update';
+include '_eb_topbar.php';
+include '_eb_hero.php';
+?>
 <div class="gate-wrap">
   <div class="gate-card">
     <div class="gate-icon"><i class="fas fa-lock"></i></div>
@@ -191,7 +176,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($case_id)) {
     <form method="post" action="update_case.php">
       <input type="hidden" name="case_id" value="<?= htmlspecialchars($case_id) ?>">
       <input type="hidden" name="action" value="gate">
-      <?= csrfField() ?>
       <div class="gate-field">
         <i class="fas fa-key"></i>
         <input type="password" name="gate_pw"
@@ -207,6 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($case_id)) {
     </a>
   </div>
 </div>
+<?php include '_eb_footer.php'; ?>
 </body>
 </html>
 <?php
@@ -215,7 +200,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($case_id)) {
 
 // POST HANDLER
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    verifyCsrf();
     $case_id  = trim($_POST['case_id'] ?? '');
     $gatePw   = $_POST['gate_pw'] ?? '';
     $action   = $_POST['action']  ?? 'gate';
@@ -236,14 +220,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
   <meta charset="UTF-8"><title>Update Record - Authorization</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="eblotter.css">
+  <link rel="stylesheet" href="../assets/css/main.css?v=<?=filemtime(dirname(__DIR__).'/assets/css/main.css')?>">
+  <link rel="stylesheet" href="eblotter.css?v=<?=filemtime(__DIR__.'/eblotter.css')?>">
   <style>
     .gate-wrap{min-height:calc(100vh - 220px);display:flex;align-items:center;justify-content:center;padding:2rem 1rem;}
     .gate-card{background:#fff;border-radius:18px;box-shadow:0 8px 40px rgba(27,38,59,.15);padding:2.5rem 2rem;width:100%;max-width:420px;text-align:center;}
     .gate-icon{width:72px;height:72px;background:linear-gradient(135deg,#1b263b,#2563eb);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;font-size:1.75rem;color:#fff;}
-    .gate-card h2{font-family:'DM Serif Display',serif;font-size:1.45rem;color:var(--navy);margin-bottom:.35rem;}
+    .gate-card h2{font-family:'Syne',sans-serif;font-size:1.45rem;color:var(--navy);margin-bottom:.35rem;}
     .gate-card p{font-size:.84rem;color:var(--gray400);margin-bottom:1.5rem;line-height:1.6;}
     .gate-field{position:relative;margin-bottom:1rem;}
     .gate-field i{position:absolute;left:.9rem;top:50%;transform:translateY(-50%);color:var(--gray400);pointer-events:none;}
@@ -256,10 +241,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
 
-<nav class="eb-navbar">
-  <a class="brand" href="eblotter_home.php"><img src="../eBlotter/images/Barangay_logo_409.png" alt="Logo">Barangay 409</a>
-</nav>
-<div class="hero-banner"><div class="inner"><h1>Update Record</h1></div></div>
+<?php
+$hero_mode    = true;
+$hero_title   = 'Update Record';
+$hero_active  = 'update';
+include '_eb_topbar.php';
+include '_eb_hero.php';
+?>
 <div class="gate-wrap">
   <div class="gate-card">
     <div class="gate-icon"><i class="fas fa-lock"></i></div>
@@ -268,7 +256,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <form method="post" action="update_case.php">
       <input type="hidden" name="case_id" value="<?= htmlspecialchars($case_id) ?>">
       <input type="hidden" name="action" value="gate">
-      <?= csrfField() ?>
       <div class="gate-field">
         <i class="fas fa-key"></i>
         <input type="password" name="gate_pw"
@@ -280,23 +267,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <a href="view_cases.php" class="gate-back"><i class="fas fa-arrow-left"></i> Back to Records</a>
   </div>
 </div>
+<?php include '_eb_footer.php'; ?>
 </body>
 </html>
 <?php
         exit();
     }
 
-    // Password OK — fetch case
+    // Password OK
+
     $stmt = $conn->prepare("SELECT * FROM blotter_cases WHERE case_id=?");
     $stmt->bind_param('s', $case_id); $stmt->execute();
     $case = $stmt->get_result()->fetch_assoc();
     if (!$case) { header('Location: update_case.php'); exit(); }
-
-    if ($action !== 'gate' && $action !== 'save') {
-        // Unknown action — redirect safely
-        header('Location: update_case.php?case_id=' . urlencode($case_id));
-        exit();
-    }
 
     if ($action === 'save') {
         // Original fields
@@ -306,11 +289,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $when   = $_POST['when_incident']       ?? null;
         $where  = trim($_POST['where_incident'] ?? '');
 
-        // Validate: incident date cannot be in the future
-        if (!empty($when) && $when > date('Y-m-d')) {
-            $errors[] = 'Incident date cannot be in the future.';
-        }
-
         // Existing new fields
         $hearingDate = trim($_POST['hearing_date'] ?? '') ?: null;
 
@@ -318,8 +296,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $mediationOutcome = trim($_POST['mediation_outcome'] ?? '') ?: null;
         $mediationReason  = trim($_POST['mediation_reason']  ?? '') ?: null;
 
-        if (empty($errors)) {
-        // Auto-resolve: if mediation is done and outcome is settled or referred to court - resolved
+        // Auto-resolve: if mediation is dOne and outcome is settled or referred to court - resolved
         $stmtMedCheck = $conn->prepare("SELECT mediation_done FROM blotter_cases WHERE case_id=? LIMIT 1");
         $stmtMedCheck->bind_param('s', $case_id);
         $stmtMedCheck->execute();
@@ -359,7 +336,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $errors[] = "Error updating: " . $conn->error;
         }
-        } // end if (empty($errors))
     }
 }
 
@@ -383,9 +359,9 @@ elseif (!$noticeDone)
 elseif (!$mediationDone)
     $hint = '→ <strong>Active step:</strong> Conduct Mediation and record the minutes.';
 elseif ($case['mediation_outcome'] === 'Settled')
-    $hint = '✔ All steps completed.';
+    $hint = '✔ All steps completed. Status ay awtomatikong na-set sa <em>Resolved</em> dahil settled ang mediation.';
 elseif ($case['mediation_outcome'] === 'Referred to Court')
-    $hint = '⚖️ All steps completed.';
+    $hint = '⚖️ All steps completed. Status ay awtomatikong na-set sa <em>Resolved</em> — Referred to Court ang kaso.';
 else
     $hint = '✔ All proceeding steps completed. Piliin ang Mediation Outcome (Settled o Referred to Court) para ma-resolve ang kaso.';
 ?>
@@ -394,12 +370,13 @@ else
 <head>
   <meta charset="UTF-8"><title>Update Record - eBlotter</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="eblotter.css">
+  <link rel="stylesheet" href="../assets/css/main.css?v=<?=filemtime(dirname(__DIR__).'/assets/css/main.css')?>">
+  <link rel="stylesheet" href="eblotter.css?v=<?=filemtime(__DIR__.'/eblotter.css')?>">
   <style>
     .case-meta-card{background:linear-gradient(135deg,var(--navy) 0%,#243447 100%);border-radius:var(--radius);padding:1.5rem;color:#fff;margin-bottom:1.5rem;}
-    .case-meta-card h3{font-family:'DM Serif Display',serif;font-size:1.2rem;margin-bottom:.5rem;}
+    .case-meta-card h3{font-family:'Syne',sans-serif;font-size:1.2rem;margin-bottom:.5rem;}
     .case-meta-card .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem;font-size:.84rem;color:rgba(255,255,255,.8);}
     .pw-reminder{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:9px;padding:.55rem 1rem;font-size:.82rem;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem;}
     .pw-field-row{display:flex;gap:.75rem;align-items:flex-end;background:var(--gray50);border:1.5px solid var(--gray200);border-radius:10px;padding:.75rem 1rem;margin-bottom:1.1rem;}
@@ -428,33 +405,15 @@ else
 </head>
 <body>
 
-<nav class="eb-navbar">
-  <a class="brand" href="eblotter_home.php"><img src="../eBlotter/images/Barangay_logo_409.png" alt="Logo">Barangay 409</a>
-  <?php if($u): ?>
-  <div style="display:flex;align-items:center;gap:.5rem;margin-left:auto;margin-right:3.5rem;font-size:.75rem;color:rgba(255,255,255,.6);">
-    <?php
-      $role=$u['role'];
-      echo "<i class='{$rIcons[$role]}' style='color:{$rColors[$role]};margin-right:4px'></i>";
-      echo htmlspecialchars($u['full_name']).' ('.ucfirst($role).')';
-    ?>
-    &nbsp;<a href="logout.php" style="color:rgba(255,255,255,.4);text-decoration:none;"><i class="fas fa-sign-out-alt"></i></a>
-  </div>
-  <?php endif; ?>
-</nav>
+<?php
+$hero_mode    = true;
+$hero_title   = 'Update Record';
+$hero_active  = 'update';
+include '_eb_topbar.php';
+include '_eb_hero.php';
+?>
 
-<div class="hero-banner">
-  <div class="inner">
-    <h1>Update Record</h1>
-    <p>Barangay 409 Case Management System — City of Manila, District IV</p>
-    <div class="hero-actions">
-      <a href="eblotter_home.php" class="ha-btn"><i class="fas fa-home"></i> Home</a>
-      <a href="add_case.php"      class="ha-btn"><i class="fas fa-plus-circle"></i> Add Record</a>
-      <a href="view_cases.php"    class="ha-btn"><i class="fas fa-list"></i> View Records</a>
-    </div>
-  </div>
-</div>
-
-<main class="eb-main">
+<main style="padding:1.5rem;max-width:1100px;margin:0 auto">
 
   <?php if ($success): ?>
     <div class="eb-alert eb-alert-success"><i class="fas fa-check-circle"></i> <?= htmlspecialchars($success) ?></div>
@@ -491,7 +450,6 @@ else
     <form method="post" action="update_case.php">
       <input type="hidden" name="case_id" value="<?= htmlspecialchars($case_id) ?>">
       <input type="hidden" name="action" value="save">
-      <?= csrfField() ?>
 
       <div class="pw-field-row">
         <div style="flex:1;">
@@ -649,13 +607,6 @@ else
           </span>
         <?php endif; ?>
 
-        <!-- signer settings (chairperson /secretary only) -->
-        <?php if (in_array(currentRole(),['chairperson','secretary'])): ?>
-        <a href="signer_settings.php" class="step-btn"
-           style="background:var(--gray200);color:var(--gray600);">
-          <i class="fas fa-signature"></i> Signer Settings
-        </a>
-        <?php endif; ?>
 
       </div>
       <?php if (!$summonsDone): ?>
@@ -789,6 +740,6 @@ function toggleMediationReason(val) {
   document.getElementById('mediationReasonWrap').style.display = val ? '' : 'none';
 }
 </script>
-
+<?php include '_eb_footer.php'; ?>
 </body>
 </html>

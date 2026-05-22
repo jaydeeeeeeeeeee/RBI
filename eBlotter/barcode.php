@@ -46,10 +46,13 @@ function draw_code128(FPDF $pdf, string $text, float $x, float $y,
         99 => '10111011110',100 => '10111101110',101 => '11101011110',
        102 => '11110101110',
        // Special symbols used by Code 128
-       104 => '11010010000', // START B
+       103 => '11010000100', // START B
+       104 => '11010010000',
+       105 => '11000010100',
     ];
 
     $stopPattern  = '1100011101011'; // Correct STOP pattern for Code 128
+    $startBPattern = '11010010000';  // START B
 
     // Build code values for Code 128B (encodes ASCII 32–127)
     $codeValues = [];
@@ -63,8 +66,8 @@ function draw_code128(FPDF $pdf, string $text, float $x, float $y,
     }
     $checksum = $checksum % 103;
 
-    // Assemble full bit string — START B is codes[$patterns[104]]
-    $bits = $patterns[104];
+    // Assemble full bit string
+    $bits = $startBPattern;
     foreach ($codeValues as $cv) {
         $bits .= $patterns[$cv] ?? '00000000000';
     }

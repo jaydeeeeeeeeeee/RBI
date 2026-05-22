@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 
 if (!isset($_SESSION['admin'])) {
@@ -101,13 +101,6 @@ foreach ($civil_statuses as $cs) {
     $cs_total_female += $f;
 }
 
-// ── Labor Sector Breakdown ────────────────────────────────────────────────────
-$labor_by_employer = [];
-$lbe_res = mysqli_query($conn, "SELECT employer, COUNT(*) AS c FROM residents WHERE employment_status='Employed' AND employer IS NOT NULL AND employer!='' AND is_hidden=0 $head_filter GROUP BY employer ORDER BY c DESC");
-while ($lbe = mysqli_fetch_assoc($lbe_res)) $labor_by_employer[] = $lbe;
-$employed_no_employer = mysqli_fetch_assoc(mysqli_query($conn,
-    "SELECT COUNT(*) AS c FROM residents WHERE employment_status='Employed' AND (employer IS NULL OR employer='') AND is_hidden=0 $head_filter"))['c'];
-
 // ── Grand totals ──────────────────────────────────────────────────────────────
 $grand_total = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c FROM residents WHERE is_hidden=0 $head_filter"))['c'];
 $total_households = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(DISTINCT CONCAT(head_first_name,' ',head_last_name)) AS c FROM residents WHERE head_first_name != '' AND is_hidden=0 $head_filter"))['c'];
@@ -120,7 +113,7 @@ $total_households = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(DISTINC
   <title>RBI Report – Barangay 410</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-  <link rel="stylesheet" href="assets/css/main.css"/>
+  <link rel="stylesheet" href="assets/css/main.css?v=<?=filemtime(__DIR__.'/assets/css/main.css')?>"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <style>
@@ -195,8 +188,8 @@ $total_households = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(DISTINC
 
     /* SUMMARY CARDS */
     .summary-row {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr));
-      gap: 12px; margin-bottom: 1.75rem;
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      gap: 10px; margin-bottom: 1.75rem;
     }
     .sum-card {
       background: var(--card); border: 1px solid var(--border);
@@ -268,30 +261,73 @@ $total_households = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(DISTINC
     @media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
 
     /* PRINT STYLES */
+    .print-digital-watermark { display: none !important; }
     @media print {
-      nav, .page-top, .toolbar, .btn { display: none !important; }
+      nav, .topbar, .sidebar, .sidebar-overlay, .page-hero, .toolbar, .btn { display: none !important; }
       body { background: #fff; font-size: 11px; }
       main { padding: 0; max-width: 100%; }
       .rbi-card { border: 1px solid #ccc; border-radius: 0; box-shadow: none; margin-bottom: 12px; }
       .summary-row { margin-bottom: 12px; }
       .two-col { gap: 10px; margin-bottom: 12px; }
-      .print-header { display: block !important; }
+
+      .print-header {
+        display: block !important;
+        text-align: center;
+        margin-bottom: 16px;
+        border-bottom: 2px solid #000;
+        padding-bottom: 12px;
+      }
+
+      .print-seal-watermark {
+        display: block !important;
+        position: fixed;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        width: 90mm; height: 90mm;
+        opacity: 0.15;
+        z-index: 0;
+        pointer-events: none;
+      }
+
+      .print-digital-watermark {
+        display: flex !important;
+        position: fixed;
+        left: 0; top: 0; bottom: 0;
+        width: 16mm;
+        align-items: center; justify-content: center;
+        overflow: visible;
+        pointer-events: none; z-index: 9999;
+      }
+      .print-digital-watermark span {
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        font-size: 8mm;
+        font-weight: bold;
+        color: rgba(72, 72, 72, 0.69);
+        font-family: 'Times New Roman', Times, serif;
+        letter-spacing: .05em;
+        white-space: nowrap;
+      }
     }
-    .print-header {
-      display: none;
-      text-align: center; margin-bottom: 16px;
-    }
-    .print-header h2 { font-size: 16px; font-weight: 700; }
-    .print-header p  { font-size: 12px; color: #555; }
+    .print-header { display: none; }
+    .print-seal-watermark { display: none; }
+    /* centered text-only header, like eBlotter PDF */
+    .print-header-text { text-align: center; }
+    .print-header-text p  { font-size: 10px; margin: 1px 0; color: #222; font-family: 'Times New Roman', serif; }
+    .print-header-text .brgy-name { font-size: 13px; font-weight: 700; font-family: 'Times New Roman', serif; }
+    .print-header-text .doc-title { font-size: 14px; font-weight: 700; margin-top: 6px; letter-spacing: 1px; font-family: 'Times New Roman', serif; }
+    .print-header-text .doc-sub   { font-size: 10px; color: #444; font-family: 'Times New Roman', serif; }
+    .topbar{position:sticky;top:0;z-index:200}
   </style>
 </head>
 <body>
 
 <header class="topbar" style="gap:12px">
-  <a href="Home.php" class="topbar-brand" style="flex-shrink:0"><div class="topbar-logo">410</div><div><div class="topbar-name">Barangay 410</div><div class="topbar-sub">RBI Report</div></div></a>
-  <div style="display:flex;align-items:center;border-left:1px solid rgba(255,255,255,.12);padding-left:14px;min-width:0">
-    <span style="font-size:13px;font-weight:700;color:#fff;font-family:'Syne',sans-serif;white-space:nowrap"><i class="fas fa-clipboard-list" style="opacity:.8;margin-right:5px"></i> RBI Report</span>
-  </div>
+  <a href="Home.php" class="topbar-brand" style="flex-shrink:0">
+    <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0">
+      <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
+    </div>
+    <div><div class="topbar-name">Barangay 410</div><div class="topbar-sub">RBI Report</div></div></a>
   <div class="topbar-right" style="margin-left:auto">
     <div title="<?=$rbadge['label']?>" style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;<?php if($is_captain):?>background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.3);<?php elseif($is_secretary):?>background:rgba(59,130,246,.15);color:#93c5fd;border:1px solid rgba(59,130,246,.3);<?php else:?>background:rgba(148,163,184,.15);color:#94a3b8;border:1px solid rgba(148,163,184,.3);<?php endif;?>"><i class="fas <?=$rbadge['icon']?>" style="font-size:12px"></i></div>
     <button class="menu-toggle" id="menuToggle"><span></span><span></span><span></span></button>
@@ -300,7 +336,11 @@ $total_households = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(DISTINC
 
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 <aside class="sidebar" id="sidebar">
-  <div class="sidebar-head"><div class="sidebar-head-brand"><div class="sidebar-head-logo">410</div><div><div class="sidebar-head-title">ProjectRBI</div><div class="sidebar-head-sub">Barangay 410 · Manila</div></div></div><button class="sidebar-close-btn" onclick="closeSidebar()"><i class="fas fa-times"></i></button></div>
+  <div class="sidebar-head"><div class="sidebar-head-brand">
+      <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;flex-shrink:0">
+        <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
+      </div>
+      <div><div class="sidebar-head-title">ProjectRBI</div><div class="sidebar-head-sub">Barangay 410 · Manila</div></div></div><button class="sidebar-close-btn" onclick="closeSidebar()"><i class="fas fa-times"></i></button></div>
   <div style="padding:14px 12px 6px"><button onclick="openSettings()" class="sidebar-settings-btn" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);color:#93c5fd;font-family:Inter,sans-serif;font-size:13px;font-weight:600;cursor:pointer"><i class="fas fa-gear"></i> Settings & More<i class="fas fa-arrow-right" style="margin-left:auto;font-size:10px;opacity:.6"></i></button></div>
   <div class="sidebar-section"><div class="sidebar-label">Main</div>
     <a href="Home.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-house"></i></span> Dashboard</a>
@@ -311,7 +351,7 @@ $total_households = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(DISTINC
     <a href="RBI.php" class="sidebar-link active"><span class="sidebar-icon"><i class="fas fa-clipboard-list"></i></span> RBI Report</a>
     <?php if(!$is_guest):?>
     <a href="data_tracking.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-database"></i></span> Document Tracking</a>
-    <a href="../eBlotter/eblotter_home.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-shield-halved"></i></span> E-Blotter</a>
+    <a href="eBlotter/eblotter_home.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-shield-halved"></i></span> E-Blotter</a>
     <a href="equipment.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-box-archive"></i></span> Equipment</a>
     <a href="senior_citizen.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-person-cane"></i></span> Senior Citizens</a>
     <?php endif;?>
@@ -319,19 +359,46 @@ $total_households = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(DISTINC
   <div class="sidebar-footer"></div>
 </aside>
 
-<div class="page-top">
-  <h1><i class="fas fa-clipboard-list" style="margin-right:8px;opacity:0.7"></i>Register of Barangay Inhabitants (RBI)</h1>
-  <p>Barangay 410 · Manila City · Official Census Report</p>
+
+
+<?php
+$_rbi_brgy = defined('BRGY_NAME')     ? htmlspecialchars(BRGY_NAME)     : 'Barangay 410';
+$_rbi_city = defined('BRGY_CITY')     ? htmlspecialchars(BRGY_CITY)     : 'City of Manila';
+$_rbi_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
+$_btn_ghost = 'display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:8px;font-size:.82rem;font-weight:600;text-decoration:none;border:1.5px solid rgba(255,255,255,.35);color:#fff;background:rgba(255,255,255,.1);backdrop-filter:blur(4px)';
+$_btn_active = 'display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:8px;font-size:.82rem;font-weight:600;text-decoration:none;border:1.5px solid #3b82f6;color:#fff;background:#3b82f6';
+?>
+<div class="page-hero" style="background:linear-gradient(to right,rgba(15,23,42,.9),rgba(15,23,42,.65)),url('images/Barangay_officials_410.png') center 60%/cover no-repeat;padding:2.5rem 2rem">
+  <div style="max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:1.5rem">
+  <div style="width:90px;height:90px;border-radius:50%;overflow:hidden;flex-shrink:0;border:2px solid rgba(255,255,255,.2)"><img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover"></div>
+  <div>
+    <h1 style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:#fff;margin:0 0 .25rem"><i class="fas fa-clipboard-list" style="margin-right:.5rem;opacity:.8"></i>RBI Report</h1>
+    <p style="color:rgba(255,255,255,.65);font-size:.84rem;margin:0 0 1.25rem"><?= $_rbi_brgy ?> Census Management &mdash; <?= $_rbi_city ?>, District <?= $_rbi_dist ?></p>
+    <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+      <a href="Home.php" style="<?= $_btn_ghost ?>"><i class="fas fa-house"></i> Home</a>
+      <a href="Display_List.php" style="<?= $_btn_ghost ?>"><i class="fas fa-users"></i> Residents</a>
+      <a href="RBI.php" style="<?= $_btn_active ?>"><i class="fas fa-clipboard-list"></i> RBI Report</a>
+    </div>
+  </div></div>
 </div>
 
 <main>
-  <!-- Print header (hidden on screen, shown when printing) -->
+  <!-- Seal watermark — centered on page like eBlotter PDF (print only) -->
+  <img src="images/brgy410_logo.png" alt="" class="print-seal-watermark">
+
+  <!-- Print header — centered text only, no side logos (print only) -->
   <div class="print-header">
-    <h2>BARANGAY 410 REGISTER OF BARANGAY INHABITANTS</h2>
-    <p>Manila City &nbsp;·&nbsp; Printed on: <?= date('F d, Y g:i A') ?></p>
-    <?php if ($selected_head): ?>
-      <p>Head of Family: <?= htmlspecialchars($selected_head) ?></p>
-    <?php endif; ?>
+    <div class="print-header-text">
+      <p>Republic of the Philippines</p>
+      <p><?= defined('BRGY_CITY') ? htmlspecialchars(BRGY_CITY) : 'City of Manila' ?></p>
+      <p class="brgy-name"><?= defined('BRGY_FULLNAME') ? htmlspecialchars(BRGY_FULLNAME) : 'Barangay 410 Zone 42' ?></p>
+      <p>District <?= defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV' ?></p>
+      <div class="doc-title">REGISTER OF BARANGAY INHABITANTS</div>
+      <div class="doc-sub">Official Census Report &nbsp;&middot;&nbsp; Printed: <?= date('F d, Y g:i A') ?></div>
+      <?php if ($selected_head): ?>
+      <div class="doc-sub">Head of Family: <?= htmlspecialchars($selected_head) ?></div>
+      <?php endif; ?>
+    </div>
   </div>
 
   <!-- TOOLBAR -->
@@ -475,24 +542,6 @@ $total_households = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(DISTINC
 
   </div>
 
-  <!-- LABOR SECTOR BREAKDOWN -->
-  <div class="section-title">Labor Sector Breakdown</div>
-  <div class="rbi-card" style="padding:1rem">
-    <?php if (!empty($labor_by_employer) || $employed_no_employer > 0): ?>
-      <div style="max-height:220px;overflow-y:auto">
-        <canvas id="laborSectorChart"></canvas>
-      </div>
-      <div style="display:flex;gap:2rem;justify-content:center;margin-top:0.75rem;font-size:11px;color:var(--muted);flex-wrap:wrap">
-        <span><strong style="color:#0f172a"><?= number_format($labor_force) ?></strong> Employed</span>
-        <span><strong style="color:#f59e0b"><?= number_format($unemployed) ?></strong> Unemployed</span>
-        <?php $total_pop = $grand_total > 0 ? $grand_total : 1; ?>
-        <span><strong style="color:#14b8a6"><?= round(($labor_force/$total_pop)*100,1) ?>%</strong> Employment Rate</span>
-      </div>
-    <?php else: ?>
-      <p style="text-align:center;color:var(--muted);padding:1rem">No employer data available.</p>
-    <?php endif; ?>
-  </div>
-
   <!-- FOOTER NOTE -->
   <p style="font-size:11px;color:var(--muted);text-align:center;padding:1rem 0">
     &copy; <?= date('Y') ?> Barangay 410 Census Management System &nbsp;·&nbsp; Manila City &nbsp;·&nbsp;
@@ -500,54 +549,6 @@ $total_households = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(DISTINC
   </p>
 </main>
 <script>
-// ── Labor Sector Chart ────────────────────────────────────────────────────────
-(function(){
-  var el = document.getElementById('laborSectorChart');
-  if(!el) return;
-  Chart.register(ChartDataLabels);
-  var rowCount = <?= count($labor_by_employer) + ($employed_no_employer > 0 ? 1 : 0) ?>;
-  el.height = Math.min(rowCount * 28 + 20, 200);
-  var rawLabels = <?= json_encode(array_map(fn($r)=>$r['employer'], $labor_by_employer)) ?>;
-  var rawCounts = <?= json_encode(array_map(fn($r)=>(int)$r['c'], $labor_by_employer)) ?>;
-  <?php if($employed_no_employer > 0): ?>
-  rawLabels.push('(no employer listed)');
-  rawCounts.push(<?= (int)$employed_no_employer ?>);
-  <?php endif; ?>
-  var palette=['#3b82f6','#14b8a6','#8b5cf6','#f59e0b','#ef4444','#10b981','#6366f1','#ec4899','#0ea5e9','#f97316','#84cc16','#a78bfa'];
-  var colors = rawLabels.map(function(_,i){return palette[i%palette.length];});
-  new Chart(el,{
-    type:'bar',
-    data:{
-      labels:rawLabels,
-      datasets:[{
-        label:'Residents',
-        data:rawCounts,
-        backgroundColor:colors,
-        borderRadius:4,
-        borderSkipped:false,
-        barThickness:14
-      }]
-    },
-    options:{
-      indexAxis:'y',
-      responsive:true,
-      plugins:{
-        legend:{display:false},
-        datalabels:{
-          anchor:'end',align:'end',
-          color:'#0f172a',font:{size:11,weight:600},
-          formatter:function(v){return v;}
-        },
-        tooltip:{callbacks:{label:function(c){return ' '+c.parsed.x+' residents';}}}
-      },
-      scales:{
-        x:{grid:{color:'#f1f5f9'},ticks:{font:{size:11}},beginAtZero:true},
-        y:{grid:{display:false},ticks:{font:{size:11,weight:500},color:'#0f172a'}}
-      }
-    }
-  });
-})();
-
 function openSettings(){document.getElementById('settingsOverlay').style.display='block';document.getElementById('settingsDrawer').style.right='0';document.body.style.overflow='hidden';if(typeof closeSidebar==='function')closeSidebar();}
 function closeSettings(){document.getElementById('settingsOverlay').style.display='none';document.getElementById('settingsDrawer').style.right='-360px';document.body.style.overflow='';}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSettings();});
@@ -563,7 +564,43 @@ function resetZoom(){zoomLvl=1;localStorage.setItem('rbi_zoom','1');applyZoom();
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sidebarOverlay').classList.add('open');document.body.style.overflow='hidden';}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('open');document.body.style.overflow='';}
 document.getElementById('menuToggle').addEventListener('click',openSidebar);
-function openSettings(){}
 </script>
+
+<div id="settingsOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1100" onclick="closeSettings()"></div>
+<div id="settingsDrawer" style="position:fixed;top:0;right:-360px;width:340px;height:100vh;background:#0f172a;z-index:1101;transition:right .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,.08)">
+  <div style="padding:20px 20px 14px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:32px;height:32px;background:linear-gradient(135deg,#3b82f6,#14b8a6);border-radius:8px;display:flex;align-items:center;justify-content:center"><i class="fas fa-gear" style="color:#fff;font-size:13px"></i></div>
+      <div><div style="font-family:Syne,sans-serif;font-size:14px;font-weight:800;color:#fff">Settings</div><div style="font-size:11px;color:rgba(255,255,255,.4)">ProjectRBI Barangay 410</div></div>
+    </div>
+    <button onclick="closeSettings()" style="width:28px;height:28px;background:rgba(255,255,255,.08);border:none;border-radius:7px;color:rgba(255,255,255,.6);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center"><i class="fas fa-times"></i></button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:16px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Appearance</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.05);border-radius:10px;padding:12px 14px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px"><div style="width:30px;height:30px;background:rgba(255,255,255,.08);border-radius:8px;display:flex;align-items:center;justify-content:center"><i class="fas fa-circle-half-stroke" style="color:#94a3b8;font-size:13px"></i></div><div><div style="font-size:13px;font-weight:600;color:#fff">Dark Mode</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Toggle dark/light theme</div></div></div>
+      <button id="darkToggle" onclick="toggleDarkMode()" style="width:42px;height:24px;border-radius:12px;background:#475569;border:none;cursor:pointer;position:relative;transition:background .25s;flex-shrink:0"><span id="darkThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;transition:left .25s"></span></button>
+    </div>
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Actions</div>
+    <button onclick="window.print()" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer">
+      <div style="width:30px;height:30px;background:rgba(255,255,255,.08);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-print" style="color:#94a3b8;font-size:13px"></i></div>
+      <div style="text-align:left"><div style="font-size:13px;font-weight:600;color:#fff">Print Page</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Print current view</div></div>
+    </button>
+  </div>
+  <div style="padding:14px 16px;border-top:1px solid rgba(255,255,255,.07)">
+    <a href="logout.php" style="display:flex;align-items:center;gap:10px;background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.25);border-radius:10px;padding:12px 14px;text-decoration:none">
+      <div style="width:30px;height:30px;background:rgba(244,63,94,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-right-from-bracket" style="color:#f43f5e;font-size:13px"></i></div>
+      <div><div style="font-size:13px;font-weight:700;color:#f43f5e">Logout</div><div style="font-size:11px;color:rgba(244,63,94,.6)">End your session</div></div>
+    </a>
+  </div>
+</div>
+<div class="print-digital-watermark" style="display:none"><span>DIGITAL COPY - NOT VALID IF UNSIGNED</span></div>
 </body>
 </html>
+
+
+
+
+
+
+

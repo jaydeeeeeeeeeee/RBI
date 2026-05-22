@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 include 'Residents_DB.php';
 include 'role_helper.php';
@@ -92,7 +92,7 @@ if (isset($_POST['_bulk_submit']) && !empty($_POST['bulk_rows'])) {
 // ── SINGLE ADD HANDLER ────────────────────────────────────────────────────
 
     // Default values
-    $has_pets = isset($_POST['has_pets']) && in_array($_POST['has_pets'], ['Yes', 'No']) ? $_POST['has_pets'] : 'No';
+    $has_pets = (isset($_POST['has_pets']) && $_POST['has_pets'] === 'Yes') ? 1 : 0;
     $years_in_barangay = empty($_POST['years_in_barangay']) ? 0 : (int)$_POST['years_in_barangay'];
     $pwd_status = (isset($_POST['pwd_status']) && $_POST['pwd_status'] === 'Yes') ? 'Yes' : 'No';
     $solo_parent_status = (isset($_POST['solo_parent_status']) && $_POST['solo_parent_status'] === 'Yes') ? 'Yes' : 'No';
@@ -193,7 +193,7 @@ if (isset($_POST['citizenship']) && in_array($_POST['citizenship'], ['Other', 'D
         }
 
         // Insert pets if applicable
-        if ($_POST['has_pets'] === 'Yes' && isset($_POST['pet_name'])) {
+        if ($has_pets && isset($_POST['pet_name'])) {
             for ($i = 0; $i < count($_POST['pet_name']); $i++) {
                 $breeder_status = (isset($_POST['breeder_status'][$i]) && $_POST['breeder_status'][$i] === 'Yes') ? 'Yes' : 'No';
 
@@ -234,13 +234,15 @@ if (isset($_POST['citizenship']) && in_array($_POST['citizenship'], ['Other', 'D
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
-    <link rel="stylesheet" href="assets/css/main.css"/>
+    <link rel="stylesheet" href="assets/css/main.css?v=<?=filemtime(__DIR__.'/assets/css/main.css')?>"/>
 </head>
 <body>
 
 <header class="topbar" style="gap:12px">
   <a href="Home.php" class="topbar-brand" style="flex-shrink:0">
-    <div class="topbar-logo">410</div>
+    <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0">
+      <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
+    </div>
     <div><div class="topbar-name">Barangay 410</div><div class="topbar-sub">Residents</div></div>
   </a>
   <div style="display:flex;align-items:center;gap:6px;border-left:1px solid rgba(255,255,255,.12);padding-left:14px">
@@ -257,7 +259,11 @@ if (isset($_POST['citizenship']) && in_array($_POST['citizenship'], ['Other', 'D
 
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 <aside class="sidebar" id="sidebar">
-  <div class="sidebar-head"><div class="sidebar-head-brand"><div class="sidebar-head-logo">410</div><div><div class="sidebar-head-title">ProjectRBI</div><div class="sidebar-head-sub">Barangay 410 · Manila</div></div></div><button class="sidebar-close-btn" onclick="closeSidebar()"><i class="fas fa-times"></i></button></div>
+  <div class="sidebar-head"><div class="sidebar-head-brand">
+      <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;flex-shrink:0">
+        <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
+      </div>
+      <div><div class="sidebar-head-title">ProjectRBI</div><div class="sidebar-head-sub">Barangay 410 · Manila</div></div></div><button class="sidebar-close-btn" onclick="closeSidebar()"><i class="fas fa-times"></i></button></div>
   <div style="padding:14px 12px 6px"><button onclick="openSettings()" class="sidebar-settings-btn" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);color:#93c5fd;font-family:Inter,sans-serif;font-size:13px;font-weight:600;cursor:pointer"><i class="fas fa-gear"></i> Settings & More<i class="fas fa-arrow-right" style="margin-left:auto;font-size:10px;opacity:.6"></i></button></div>
   <div class="sidebar-section"><div class="sidebar-label">Main</div>
     <a href="Home.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-house"></i></span> Dashboard</a>
@@ -268,7 +274,7 @@ if (isset($_POST['citizenship']) && in_array($_POST['citizenship'], ['Other', 'D
     <a href="RBI.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-clipboard-list"></i></span> RBI Report</a>
     <?php if(!$is_guest):?>
     <a href="data_tracking.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-database"></i></span> Document Tracking</a>
-    <a href="../eBlotter/eblotter_home.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-shield-halved"></i></span> E-Blotter</a>
+    <a href="eBlotter/eblotter_home.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-shield-halved"></i></span> E-Blotter</a>
     <a href="equipment.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-box-archive"></i></span> Equipment</a>
     <a href="senior_citizen.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-person-cane"></i></span> Senior Citizens</a>
     <?php endif;?>
@@ -1150,39 +1156,6 @@ if (isset($_POST['citizenship']) && in_array($_POST['citizenship'], ['Other', 'D
     </button>
   </div>
 
-  <!-- ── CONFIRM & SUBMIT PANEL (shown on Submit click) ── -->
-  <div id="confirmPanel" style="display:none;margin-top:1.25rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:1.25rem">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem">
-      <div style="width:40px;height:40px;background:#dcfce7;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;color:#16a34a;flex-shrink:0">
-        <i class="fas fa-shield-halved"></i>
-      </div>
-      <div>
-        <div style="font-size:14px;font-weight:700;color:#0f172a">Confirm Registration</div>
-        <div style="font-size:12px;color:#64748b">Enter your admin password to complete the registration.</div>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <div style="position:relative;flex:1;min-width:200px">
-        <i class="fas fa-key" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px"></i>
-        <input type="password" id="confirmPassword" placeholder="Admin password"
-          style="width:100%;padding:10px 14px 10px 36px;border:1px solid #e2e8f0;border-radius:9px;font-size:14px;font-family:Inter,sans-serif;outline:none;transition:border .2s;box-sizing:border-box"
-          onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e2e8f0'"
-          onkeydown="if(event.key==='Enter')doSubmitSingle()">
-      </div>
-      <button type="button" onclick="doSubmitSingle()"
-        style="padding:10px 24px;background:#3b82f6;color:#fff;border:none;border-radius:9px;font-family:Inter,sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap"
-        onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#3b82f6'">
-        <i class="fas fa-user-plus"></i> Confirm & Save
-      </button>
-      <button type="button" onclick="hideConfirmPanel()"
-        style="padding:10px 16px;background:#fff;color:#64748b;border:1px solid #e2e8f0;border-radius:9px;font-family:Inter,sans-serif;font-size:13px;cursor:pointer">
-        Cancel
-      </button>
-    </div>
-    <div id="singlePwErr" style="color:#be123c;font-size:12px;margin-top:8px;display:none">
-      <i class="fas fa-exclamation-circle"></i> <span id="singlePwErrMsg">Incorrect password.</span>
-    </div>
-  </div>
 
 </div>
   </div>
@@ -1278,7 +1251,7 @@ if (isset($_POST['citizenship']) && in_array($_POST['citizenship'], ['Other', 'D
     <input type="hidden" name="_bulk_submit" value="1">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:1rem;border-top:1px solid #f1f5f9">
       <button type="button" onclick="clearBulk()"
-        style="padding:9px 18px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;font-family:Inter,sans-serif;font-size:13px;font-weight:500;cursor:pointer;color:#0f172a;display:flex;align-items:center;gap:6px">
+        style="padding:9px 18px;border:1px solid #e2e8f0;border-radius:8px;font-family:Inter,sans-serif;font-size:13px;font-weight:500;cursor:pointer;color:#0f172a;display:flex;align-items:center;gap:6px">
         <i class="fas fa-trash" style="color:#f43f5e"></i> Clear All
       </button>
       <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -1510,7 +1483,7 @@ const TODAY_B = new Date().toISOString().split('T')[0];
 let bulkRowCount = 0;
 
 function mkS(field, opts, def) {
-  let s = `<select data-field="${field}" style="width:100%;padding:5px 6px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-family:Inter,sans-serif;background:#fff;outline:none;box-sizing:border-box">`;
+  let s = `<select data-field="${field}" style="width:100%;padding:5px 6px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-family:Inter,sans-serif;outline:none;box-sizing:border-box">`;
   opts.forEach(o => s += `<option${o===def?' selected':''}>${o}</option>`);
   return s + '</select>';
 }
@@ -1625,36 +1598,55 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 <script>
 function showConfirmPanel() {
-  const panel = document.getElementById('confirmPanel');
-  panel.style.display = 'block';
-  panel.scrollIntoView({behavior:'smooth', block:'nearest'});
-  setTimeout(() => document.getElementById('confirmPassword').focus(), 300);
+  document.getElementById('confirmOverlay').style.display = 'block';
+  document.getElementById('confirmModal').style.display = 'block';
   document.getElementById('singlePwErr').style.display = 'none';
+  document.getElementById('confirmPassword').value = '';
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('confirmPassword').focus(), 100);
 }
 function hideConfirmPanel() {
-  document.getElementById('confirmPanel').style.display = 'none';
+  document.getElementById('confirmOverlay').style.display = 'none';
+  document.getElementById('confirmModal').style.display = 'none';
   document.getElementById('confirmPassword').value = '';
+  document.body.style.overflow = '';
 }
+function toggleConfirmPw() {
+  const inp = document.getElementById('confirmPassword');
+  const icon = document.getElementById('confirmPwEyeIcon');
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  icon.className = show ? 'fas fa-eye-slash' : 'fas fa-eye';
+}
+document.addEventListener('keydown', e => { if(e.key === 'Escape') hideConfirmPanel(); });
 function doSubmitSingle() {
   const pw = document.getElementById('confirmPassword').value;
   const errBox = document.getElementById('singlePwErr');
   const errMsg = document.getElementById('singlePwErrMsg');
+  const btn    = document.getElementById('confirmSaveBtn');
   if (!pw) { errBox.style.display='block'; errMsg.textContent='Please enter your admin password.'; return; }
   errBox.style.display = 'none';
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying…';
   const fd = new FormData();
   fd.append('password', pw);
   fetch('verify_secretary.php', {method:'POST', body:fd})
     .then(r => r.json())
     .then(res => {
       if (res.ok) {
+        btn.innerHTML = '<i class="fas fa-check"></i> Saving…';
         document.getElementById('multiStepForm').submit();
       } else {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-user-plus"></i> Confirm & Save';
         errBox.style.display = 'block';
         errMsg.textContent = res.message || 'Incorrect password.';
         document.getElementById('confirmPassword').value = '';
         document.getElementById('confirmPassword').focus();
       }
     }).catch(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-user-plus"></i> Confirm & Save';
       errBox.style.display = 'block';
       errMsg.textContent = 'Server error. Please try again.';
     });
@@ -1711,7 +1703,90 @@ function resetZoom(){zoomLvl=1;localStorage.setItem('rbi_zoom','1');applyZoom();
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sidebarOverlay').classList.add('open');document.body.style.overflow='hidden';}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('open');document.body.style.overflow='';}
 document.getElementById('menuToggle').addEventListener('click',openSidebar);
-function openSettings(){}
 </script>
+
+<div id="settingsOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1100" onclick="closeSettings()"></div>
+<div id="settingsDrawer" style="position:fixed;top:0;right:-360px;width:340px;height:100vh;background:#0f172a;z-index:1101;transition:right .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,.08)">
+  <div style="padding:20px 20px 14px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:32px;height:32px;background:linear-gradient(135deg,#3b82f6,#14b8a6);border-radius:8px;display:flex;align-items:center;justify-content:center"><i class="fas fa-gear" style="color:#fff;font-size:13px"></i></div>
+      <div><div style="font-family:Syne,sans-serif;font-size:14px;font-weight:800;color:#fff">Settings</div><div style="font-size:11px;color:rgba(255,255,255,.4)">ProjectRBI Barangay 410</div></div>
+    </div>
+    <button onclick="closeSettings()" style="width:28px;height:28px;background:rgba(255,255,255,.08);border:none;border-radius:7px;color:rgba(255,255,255,.6);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center"><i class="fas fa-times"></i></button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:16px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Appearance</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.05);border-radius:10px;padding:12px 14px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px"><div style="width:30px;height:30px;background:rgba(255,255,255,.08);border-radius:8px;display:flex;align-items:center;justify-content:center"><i class="fas fa-circle-half-stroke" style="color:#94a3b8;font-size:13px"></i></div><div><div style="font-size:13px;font-weight:600;color:#fff">Dark Mode</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Toggle dark/light theme</div></div></div>
+      <button id="darkToggle" onclick="toggleDarkMode()" style="width:42px;height:24px;border-radius:12px;background:#475569;border:none;cursor:pointer;position:relative;transition:background .25s;flex-shrink:0"><span id="darkThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;transition:left .25s"></span></button>
+    </div>
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Actions</div>
+    <button onclick="window.print()" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer">
+      <div style="width:30px;height:30px;background:rgba(255,255,255,.08);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-print" style="color:#94a3b8;font-size:13px"></i></div>
+      <div style="text-align:left"><div style="font-size:13px;font-weight:600;color:#fff">Print Page</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Print current view</div></div>
+    </button>
+  </div>
+  <div style="padding:14px 16px;border-top:1px solid rgba(255,255,255,.07)">
+    <a href="logout.php" style="display:flex;align-items:center;gap:10px;background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.25);border-radius:10px;padding:12px 14px;text-decoration:none">
+      <div style="width:30px;height:30px;background:rgba(244,63,94,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-right-from-bracket" style="color:#f43f5e;font-size:13px"></i></div>
+      <div><div style="font-size:13px;font-weight:700;color:#f43f5e">Logout</div><div style="font-size:11px;color:rgba(244,63,94,.6)">End your session</div></div>
+    </a>
+  </div>
+</div>
+<!-- ══ CONFIRM REGISTRATION MODAL ══════════════════════════════════════════ -->
+<div id="confirmOverlay" onclick="hideConfirmPanel()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1200;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)"></div>
+<div id="confirmModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1201;width:100%;max-width:420px;padding:0 1rem;box-sizing:border-box">
+  <div style="background:#fff;border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden">
+
+    <!-- Modal header -->
+    <div style="background:linear-gradient(135deg,#0f172a,#1e3a5f);padding:1.75rem 1.75rem 1.25rem;text-align:center">
+      <div style="width:60px;height:60px;border-radius:50%;overflow:hidden;margin:0 auto 1rem;border:2px solid rgba(255,255,255,.2)">
+        <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover" alt="">
+      </div>
+      <div style="font-family:'Syne',sans-serif;font-size:1.15rem;font-weight:800;color:#fff;margin-bottom:4px">Confirm Registration</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.5)">Enter your admin password to save this resident.</div>
+    </div>
+
+    <!-- Modal body -->
+    <div style="padding:1.5rem 1.75rem 1.75rem">
+      <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:8px">Admin Password</label>
+      <div style="position:relative">
+        <i class="fas fa-key" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;pointer-events:none"></i>
+        <input type="password" id="confirmPassword" placeholder="Enter your password…"
+          style="width:100%;padding:11px 44px 11px 38px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:'Inter',sans-serif;outline:none;box-sizing:border-box;transition:border .2s"
+          onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e2e8f0'"
+          onkeydown="if(event.key==='Enter')doSubmitSingle()">
+        <button type="button" id="confirmPwEye" onclick="toggleConfirmPw()"
+          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#94a3b8;font-size:13px;padding:4px">
+          <i class="fas fa-eye" id="confirmPwEyeIcon"></i>
+        </button>
+      </div>
+      <div id="singlePwErr" style="display:none;margin-top:8px;color:#be123c;font-size:12px;background:#fff1f2;border:1px solid #fecdd3;border-radius:7px;padding:7px 11px">
+        <i class="fas fa-exclamation-circle"></i> <span id="singlePwErrMsg">Incorrect password.</span>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:1.25rem">
+        <button type="button" onclick="hideConfirmPanel()"
+          style="flex:1;padding:11px;background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:10px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s"
+          onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+          Cancel
+        </button>
+        <button type="button" id="confirmSaveBtn" onclick="doSubmitSingle()"
+          style="flex:2;padding:11px;background:#22c55e;color:#fff;border:none;border-radius:10px;font-family:'Inter',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px"
+          onmouseover="this.style.background='#16a34a'" onmouseout="this.style.background='#22c55e'">
+          <i class="fas fa-user-plus"></i> Confirm & Save
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
+
+
+
+
+
+
+

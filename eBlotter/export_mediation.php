@@ -11,6 +11,21 @@ if (empty($_POST['export_pw'])) {
     exit();
 }
 
+// Guard: defined in auth.php; fallback for safety
+if (!function_exists('verifyCurrentUserOrChairPassword')) {
+    function verifyCurrentUserOrChairPassword(mysqli $conn, string $attempt): bool {
+        if (isChairperson()) {
+            $uid = currentUser()['id'];
+            $s = $conn->prepare("SELECT password FROM admins WHERE id=? LIMIT 1");
+            if (!$s) return false;
+            $s->bind_param('i', $uid); $s->execute();
+            $row = $s->get_result()->fetch_assoc();
+            return $row && password_verify($attempt, $row['password']);
+        }
+        return verifyChairpersonPassword($conn, $attempt);
+    }
+}
+$exportPwOk = false;
 $exportPwOk = verifyCurrentUserOrChairPassword($conn, $_POST['export_pw']);
 if (!$exportPwOk) {
     http_response_code(403); header('Content-Type: text/html; charset=utf-8');
@@ -24,8 +39,7 @@ require_once 'fpdf/fpdf.php';
 
 // ── Load case
 $case_id = trim($_POST['case_id'] ?? $_GET['case_id'] ?? '');
-// Standardized field name: agreement_text (minutes is a legacy alias)
-$minutes = trim($_POST['agreement_text'] ?? $_POST['minutes'] ?? '');
+$minutes = trim($_POST['minutes'] ?? '');
 
 $case=null;
 if($case_id){
@@ -34,16 +48,13 @@ if($case_id){
     $case=$stmt->get_result()->fetch_assoc();
 }
 
-// Workflow check: Mediation Minutes require Ongoing status AND notice_done=1
-// Checking only 'status' is insufficient — a case can be manually set Ongoing
-// without completing the Summons → Notice workflow.
-if($case && ($case['status']==='Pending' || empty($case['notice_done']))){
+// Workflow check: Mediation Minutes are only available for Ongoing cases
+if($case && $case['status']==='Pending'){
     http_response_code(403); header('Content-Type: text/html; charset=utf-8');
-    $missing = $case['status']==='Pending' ? 'issue a Summons' : 'issue a Notice of Hearing';
     echo '<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:3rem;">
     <h2 style="color:#991b1b;">&#128683; Step Locked</h2>
-    <p>Mediation Minutes are only available after completing all prior steps.<br>
-    Please <strong>'.$missing.'</strong> first.</p></body></html>';
+    <p>Mediation Minutes are only available for <strong>Ongoing</strong> cases.<br>
+    Please issue a Summons and update the case status to Ongoing first.</p></body></html>';
     exit();
 }
 
@@ -56,51 +67,66 @@ require_once __DIR__ . '/barcode.php';
 // ── PDF Class
 class MedMinutesPDF extends FPDF {
     public string $exportedBy='', $exportedAt='';
+
+    function RotatedText($x, $y, $txt, $angle) {
+        $this->_out('q');
+        $rad = deg2rad($angle);
+        $c = cos($rad); $s = sin($rad);
+        $cx = $x * $this->k;
+        $cy = ($this->h - $y) * $this->k;
+        $this->_out(sprintf('%.5F %.5F %.5F %.5F %.5F %.5F cm', $c, $s, -$s, $c, $cx, $cy));
+        $this->_out($this->TextColor);
+        $this->_out(sprintf('BT /F%d %.2F Tf 0 0 Td (%s) Tj ET',
+            $this->CurrentFont['i'], $this->FontSizePt, $this->_escape($txt)));
+        $this->_out('Q');
+    }
+
     function Header(){
-
-        // Watermark
-        $logo = __DIR__ . '/../eBlotter/images/Barangay_logo_409_1.png';
-
-        if(file_exists($logo)){
-            $pageW = $this->GetPageWidth();
-            $pageH = $this->GetPageHeight();
-
-            $size = 100;
-
-            $x = ($pageW - $size) / 2;
-            $y = ($pageH - $size) / 2;
-
-            $this->Image($logo, $x, $y, $size);
+        $logos = [
+            __DIR__ . '/images/brgy410_logo.png',
+            __DIR__ . '/images/brgy410_logo.png',
+        ];
+        foreach ($logos as $logo) {
+            if (file_exists($logo)) {
+                $size = 90;
+                $x = ($this->GetPageWidth()  - $size) / 2;
+                $y = ($this->GetPageHeight() - $size) / 2;
+                $this->Image($logo, $x, $y, $size);
+                break;
+            }
         }
 
         $this->SetFont('Times','',9); $this->SetTextColor(0,0,0);
         $this->SetXY(20,10); $this->Cell(170,4,'Republic of the Philippines',0,1,'C');
         $this->SetX(20);     $this->Cell(170,4,'City of Manila',0,1,'C');
-        $this->SetX(20);     $this->Cell(170,4,'District IV',0,1,'C');
+        $this->SetFont('Times','B',9);
+        $this->SetX(20);     $this->Cell(170,4,defined('BRGY_FULLNAME') ? BRGY_FULLNAME : 'Barangay 410 Zone 42',0,1,'C');
+        $this->SetFont('Times','',9);
+        $this->SetX(20);     $this->Cell(170,4,'District '.(defined('BRGY_DISTRICT') ? BRGY_DISTRICT : 'IV'),0,1,'C');
         $this->Ln(1);
         $this->SetFont('Times','B',11);
-        $this->SetX(20); $this->Cell(170,5,'OFFICE OF LUPON TAGAPAMAYAPA',0,1,'C');
-        $this->SetFont('Times','',9);
-        $this->SetX(20); $this->Cell(170,4,'Barangay 409 Zone 42  |  254 Sta. Teresita St. Sampaloc, Manila',0,1,'C');
+        $this->SetX(20); $this->Cell(170,5,'OFFICE OF THE LUPONG TAGAPAMAYAPA',0,1,'C');
         $this->Ln(2); $this->SetLineWidth(0.5);
         $this->Line(20,$this->GetY(),190,$this->GetY()); $this->Ln(4);
         $this->SetFont('Times','B',13);
         $this->SetX(20); $this->Cell(170,6,'MEDIATION MINUTES',0,1,'C'); $this->Ln(2);
     }
+
     function Footer(){
+        $txt = 'DIGITAL COPY - NOT VALID IF UNSIGNED';
+        $this->SetFont('Times', 'B', 10);
+        $unitW = $this->GetStringWidth($txt);
+        $targetH = $this->GetPageHeight() - 20;
+        $fs = ($unitW > 0) ? (10 * $targetH / $unitW) : 30;
+        $this->SetFont('Times', 'B', $fs);
+        $tw = $this->GetStringWidth($txt);
+        $this->SetTextColor(190, 190, 190);
+        $this->RotatedText(10, ($this->GetPageHeight() + $tw) / 2, $txt, 90);
+
         $this->SetY(-10);
         $this->SetFont('Times','I',7);
         $this->SetTextColor(130,130,130);
-        $this->Cell(56,4,'Exported by: '.$this->exportedBy.' | '.$this->exportedAt.'',0,0,'C');
-
-        $this->SetY(-20);
-        $width = 100;
-        $x = $this->GetPageWidth() - $width - 10; // 10mm right margin
-        $this->SetX($x);
-        $this->SetFont('Times','B',12);
-        $this->SetLineWidth(0.5);
-        $this->SetDrawColor(130, 130, 130);     
-        $this->Cell(100,10,'DIGITAL COPY ' .chr(150) . ' NOT VALID IF UNSIGNED',1,0,'C');
+        $this->Cell(0,4,'Exported by: '.$this->exportedBy.' | '.$this->exportedAt,0,0,'C');
     }
 }
 
@@ -147,7 +173,11 @@ for($ly=$writeStartY;$ly+$lineH<=$sigBlockTop;$ly+=$lineH)
 if(!empty($minutes)){
     $pdf->SetFont('Times','',10); $pdf->SetTextColor(0,0,0);
     $lines=[];
-    foreach(explode("\n",str_replace("\r\n","\n",$minutes)) as $raw){
+    foreach(explode("\
+",str_replace("\
+\
+","\
+",$minutes)) as $raw){
         if($raw===''){$lines[]='';continue;}
         $words=explode(' ',$raw); $line='';
         foreach($words as $wd){
@@ -191,50 +221,35 @@ markExported($conn,$case_id,'MEDIATION_MINUTES');
 
 // 128 barcode using Case ID 
 if (!empty($case_id)) {
-    $barcodeX    = 10;   // left margin (mm)
-    $barcodeH    = 10;   // bar height (mm)
-    $barcodeNarW = 0.30; // narrow module width (mm)
-    // above the footer
-    $barcodeY = $pdf->GetPageHeight() - 20;
+    $barcodeH    = 10;    // bar height (mm)
+    $barcodeNarW = 0.28;  // narrow module width (mm)
+    $barcodeBits  = 35 + strlen($case_id) * 11;
+    $barcodeW     = $barcodeBits * $barcodeNarW;
+    $barcodeX = $pdf->GetPageWidth() - $barcodeW - 10;
+    $barcodeY = $pdf->GetPageHeight() - 22;
     draw_code128($pdf, $case_id, $barcodeX, $barcodeY, $barcodeH, $barcodeNarW);
 }
 
-// Capture PDF string FIRST — only set flags if generation succeeds
-$savedBy     = $u ? $u['full_name'] : 'Unknown';
+// Mark mediation as done
+$conn->query("UPDATE blotter_cases SET mediation_done=1 WHERE case_id='".mysqli_real_escape_string($conn,$case_id)."' AND (mediation_done IS NULL OR mediation_done=0)");
+auditLog($conn,'EXPORT_MEDIATION',$case_id,'Mediation Minutes PDF exported');
+
+// save mediation data to DB BEFORE Output() 
+$savedBy = $u ? $u['full_name'] : 'Unknown';
 $p_agreement = $_POST['agreement_text'] ?? $_POST['minutes'] ?? '';
 
-$pdfString = $pdf->Output('S', 'brgy409_mediation_'.preg_replace('/[^A-Za-z0-9\-]/','', $case_id).'.pdf');
+$stmtSave = $conn->prepare("
+    INSERT INTO case_mediation
+        (case_id, agreement_text, saved_by)
+    VALUES (?,?,?)
+    ON DUPLICATE KEY UPDATE
+        agreement_text=VALUES(agreement_text),
+        saved_by=VALUES(saved_by), updated_at=NOW()
+");
 
-if (!empty($pdfString)) {
-    // Mark mediation as done
-    $stmtMed = $conn->prepare("UPDATE blotter_cases SET mediation_done=1 WHERE case_id=? AND (mediation_done IS NULL OR mediation_done=0)");
-    $stmtMed->bind_param('s', $case_id);
-    $stmtMed->execute();
-    auditLog($conn,'EXPORT_MEDIATION',$case_id,'Mediation Minutes PDF exported');
+$stmtSave->bind_param('sss', $case_id, $p_agreement, $savedBy);
+$stmtSave->execute();
 
-    $stmtSave = $conn->prepare("
-        INSERT INTO case_mediation
-            (case_id, agreement_text, saved_by)
-        VALUES (?,?,?)
-        ON DUPLICATE KEY UPDATE
-            agreement_text=VALUES(agreement_text),
-            saved_by=VALUES(saved_by), updated_at=NOW()
-    ");
-    $stmtSave->bind_param('sss', $case_id, $p_agreement, $savedBy);
-    $stmtSave->execute();
+$pdf->Output('I','brgy410_mediation_'.preg_replace('/[^A-Za-z0-9\-]/','', $case_id).'.pdf');
 
-    // Send the PDF to the browser
-    header('Content-Type: application/pdf');
-    $pdfFilename = 'brgy409_mediation_' . preg_replace('/[^A-Za-z0-9\-]/', '', $case_id) . '.pdf';
-    header('Content-Disposition: inline; filename=' . $pdfFilename);
-    header('Content-Length: ' . strlen($pdfString));
-    echo $pdfString;
-} else {
-    http_response_code(500);
-    header('Content-Type: text/html; charset=utf-8');
-    echo '<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:3rem;">
-    <h2 style="color:#991b1b;">&#9888; PDF Generation Failed</h2>
-    <p>The PDF could not be generated. No workflow flags were changed.</p>
-    <p><a href="javascript:history.back()">Go back</a></p></body></html>';
-}
 exit;

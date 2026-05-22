@@ -1,8 +1,7 @@
-<?php
+﻿<?php
 require_once __DIR__.'/auth.php';
 requireRole(); // all roles can view home
 
-// Single query for all status counts
 $countRes = $conn->query("SELECT status, COUNT(*) AS c FROM blotter_cases GROUP BY status");
 $statusCounts = ['Pending' => 0, 'Ongoing' => 0, 'Resolved' => 0];
 $totalCases = 0;
@@ -15,256 +14,147 @@ $ongoingCases  = $statusCounts['Ongoing'];
 $resolvedCases = $statusCounts['Resolved'];
 
 $recent = $conn->query("SELECT case_id, complainant_first, complainant_last, respondent_first, respondent_last, status, when_incident FROM blotter_cases ORDER BY created_at DESC LIMIT 6");
-$active_page = 'eBlotter';
+
+$u    = currentUser();
+$role = $u['role'] ?? 'kagawad';
+$is_chairperson = ($role === 'chairperson');
+$is_secretary   = ($role === 'secretary');
+
+$rbadge = match($role) {
+    'chairperson' => ['icon'=>'fa-crown',   'label'=>'Punong Barangay'],
+    'secretary'   => ['icon'=>'fa-user-tie','label'=>'Secretary'],
+    default       => ['icon'=>'fa-user',    'label'=>'Kagawad'],
+};
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>eBlotter - Barangay 409</title>
+  <title>eBlotter – <?= defined('BRGY_NAME') ? htmlspecialchars(BRGY_NAME) : 'Barangay' ?></title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="eblotter.css">
+  <link rel="stylesheet" href="../assets/css/main.css?v=<?=filemtime(dirname(__DIR__).'/assets/css/main.css')?>">
+  <link rel="stylesheet" href="eblotter.css?v=<?=filemtime(__DIR__.'/eblotter.css')?>">
   <style>
-    .section-title {
-      font-family: 'DM Serif Display', serif;
-      font-size: 1.2rem; color: var(--navy);
-      margin-bottom: 1rem;
-      display: flex; align-items: center; gap: .5rem;
-    }
-    .section-title::after { content: ''; flex: 1; height: 1px; background: var(--gray200); }
+    main{padding:1.5rem;max-width:1100px;margin:0 auto}
+    .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.25rem}
+    @media(max-width:600px){.stat-row{grid-template-columns:1fr 1fr}}
+    .scard{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:.85rem;text-align:center}
+    .scard-num{font-size:22px;font-weight:700;line-height:1}
+    .scard-lbl{font-size:11px;color:#64748b;margin-top:3px}
+    footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:center;padding:1.25rem;margin-top:2rem}
 
-    /* ── KATARUNGAN PAMBARANGAY PROCESS CARD ── */
-    .kp-card {
-      background: #fff;
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 1.75rem 1.75rem 1.25rem;
-      margin-top: 2rem;
-      margin-bottom: 2rem;
-    }
-    .kp-card-title {
-      font-family: 'DM Serif Display', serif;
-      font-size: 1.15rem;
-      color: var(--navy);
-      display: flex; align-items: center; gap: .6rem;
-      margin-bottom: 2rem;
-    }
+    /* KP Process card */
+    .kp-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:1.75rem 1.75rem 1.25rem;margin-bottom:1.5rem}
+    .kp-card-title{font-family:'Syne',sans-serif;font-size:1rem;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:.6rem;margin-bottom:1.75rem}
+    .section-title{font-family:'Syne',sans-serif;font-size:.95rem;font-weight:800;color:#0f172a;margin-bottom:.85rem;display:flex;align-items:center;gap:.5rem}
+    .section-title::after{content:'';flex:1;height:1px;background:#e2e8f0}
 
-    /* ── PROCESS FLOW ── */
-    .kp-flow {
-      display: flex;
-      align-items: flex-start;
-      gap: 0;
-      overflow-x: auto;
-      padding-bottom: 1rem;
-    }
+    /* Process flow */
+    .kp-flow{display:flex;align-items:flex-start;gap:0;overflow-x:auto;padding-bottom:1rem}
+    .kp-phase{display:flex;flex-direction:column;align-items:center;min-width:160px;flex:1}
+    .kp-phase-header{width:100%;text-align:center;padding:.4rem .5rem;border-radius:8px 8px 0 0;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.75rem}
+    .kp-step{background:#fff;border-radius:10px;padding:.85rem .75rem;text-align:center;width:140px;position:relative;border:2px solid #e2e8f0;transition:transform .15s,box-shadow .15s}
+    .kp-step:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.1)}
+    .kp-step-num{width:26px;height:26px;border-radius:50%;font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto .5rem;color:#fff}
+    .kp-step-icon{font-size:1.3rem;margin-bottom:.4rem;display:block}
+    .kp-step h5{font-size:.78rem;font-weight:700;color:#0f172a;margin-bottom:.2rem;line-height:1.3}
+    .kp-step p{font-size:.68rem;color:#64748b;line-height:1.4;margin:0}
+    .kp-tag{display:inline-block;margin-top:.45rem;padding:.15rem .55rem;border-radius:999px;font-size:.62rem;font-weight:700}
+    .kp-arrow{display:flex;align-items:center;justify-content:center;padding:0 .4rem;margin-top:3.5rem;color:#94a3b8;font-size:1.1rem;flex-shrink:0}
+    .kp-steps-col{display:flex;flex-direction:column;align-items:center;gap:.5rem}
+    .kp-down-arrow{color:#94a3b8;font-size:.8rem;text-align:center}
+    .kp-legend{display:flex;gap:1.25rem;flex-wrap:wrap;margin-top:1.25rem;padding-top:1rem;border-top:1px solid #f1f5f9}
+    .kp-legend-item{display:flex;align-items:center;gap:.4rem;font-size:.73rem;color:#64748b}
+    .kp-legend-dot{width:10px;height:10px;border-radius:50%}
 
-    .kp-phase {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-width: 160px;
-      flex: 1;
-    }
+    .phase-filing .kp-phase-header{background:#dcfce7;color:#15803d}
+    .phase-filing .kp-step{border-color:#bbf7d0}
+    .phase-filing .kp-step-num{background:#16a34a}
+    .phase-filing .kp-tag{background:#dcfce7;color:#15803d}
+    .phase-mediation .kp-phase-header{background:#dbeafe;color:#1d4ed8}
+    .phase-mediation .kp-step{border-color:#bfdbfe}
+    .phase-mediation .kp-step-num{background:#2563eb}
+    .phase-mediation .kp-tag{background:#dbeafe;color:#1d4ed8}
+    .phase-pangkat .kp-phase-header{background:#fef3c7;color:#92400e}
+    .phase-pangkat .kp-step{border-color:#fde68a}
+    .phase-pangkat .kp-step-num{background:#d97706}
+    .phase-pangkat .kp-tag{background:#fef3c7;color:#92400e}
+    .phase-resolution .kp-phase-header{background:#f3e8ff;color:#7e22ce}
+    .phase-resolution .kp-step{border-color:#e9d5ff}
+    .phase-resolution .kp-step-num{background:#7c3aed}
+    .phase-resolution .kp-tag{background:#f3e8ff;color:#7e22ce}
 
-    .kp-phase-header {
-      width: 100%;
-      text-align: center;
-      padding: .4rem .5rem;
-      border-radius: 8px 8px 0 0;
-      font-size: .7rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .07em;
-      margin-bottom: .75rem;
-    }
+    /* Recent records table */
+    .eb-table-wrap{background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden}
+    .eb-table-wrap table{width:100%;border-collapse:collapse;font-size:13px}
+    .eb-table-wrap th{background:#f8fafc;padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #e2e8f0}
+    .eb-table-wrap td{padding:10px 14px;border-bottom:1px solid #f1f5f9;color:#0f172a}
+    .eb-table-wrap tr:last-child td{border-bottom:none}
+    .eb-table-wrap tr:hover td{background:#f8fafc}
+    .chip{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700}
+    .chip-pending{background:#fef3c7;color:#92400e}
+    .chip-ongoing{background:#dbeafe;color:#1d4ed8}
+    .chip-resolved{background:#dcfce7;color:#15803d}
 
-    .kp-step {
-      background: #fff;
-      border-radius: 10px;
-      padding: .85rem .75rem;
-      text-align: center;
-      width: 140px;
-      position: relative;
-      border: 2px solid #e2e8f0;
-      transition: transform .15s, box-shadow .15s;
-    }
-    .kp-step:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.1); }
+    /* Deny alert */
+    .deny-alert{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:.75rem 1.25rem;font-size:.88rem;text-align:center;margin-bottom:1rem;border-radius:8px}
 
-    .kp-step-num {
-      width: 26px; height: 26px;
-      border-radius: 50%;
-      font-size: .72rem; font-weight: 800;
-      display: flex; align-items: center; justify-content: center;
-      margin: 0 auto .5rem;
-      color: #fff;
-    }
-    .kp-step-icon {
-      font-size: 1.3rem;
-      margin-bottom: .4rem;
-      display: block;
-    }
-    .kp-step h5 {
-      font-size: .78rem; font-weight: 700;
-      color: var(--navy); margin-bottom: .2rem; line-height: 1.3;
-    }
-    .kp-step p {
-      font-size: .68rem; color: var(--gray400); line-height: 1.4; margin: 0;
-    }
-
-    /* Status chips on steps */
-    .kp-tag {
-      display: inline-block;
-      margin-top: .45rem;
-      padding: .15rem .55rem;
-      border-radius: 999px;
-      font-size: .62rem; font-weight: 700;
-    }
-
-    .kp-arrow {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 .4rem;
-      margin-top: 3.5rem;
-      color: var(--gray400);
-      font-size: 1.1rem;
-      flex-shrink: 0;
-    }
-
-    .kp-steps-col {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: .5rem;
-    }
-    .kp-down-arrow {
-      color: var(--gray400);
-      font-size: .8rem;
-      text-align: center;
-    }
-    .kp-branch-label {
-      font-size: .65rem;
-      font-weight: 700;
-      padding: .15rem .5rem;
-      border-radius: 999px;
-      margin: .1rem 0;
-    }
-
-    .phase-filing .kp-phase-header { background: #dcfce7; color: #15803d; }
-    .phase-filing .kp-step { border-color: #bbf7d0; }
-    .phase-filing .kp-step-num { background: #16a34a; }
-    .phase-filing .kp-tag { background: #dcfce7; color: #15803d; }
-
-    .phase-mediation .kp-phase-header { background: #dbeafe; color: #1d4ed8; }
-    .phase-mediation .kp-step { border-color: #bfdbfe; }
-    .phase-mediation .kp-step-num { background: #2563eb; }
-    .phase-mediation .kp-tag { background: #dbeafe; color: #1d4ed8; }
-
-    .phase-pangkat .kp-phase-header { background: #fef3c7; color: #92400e; }
-    .phase-pangkat .kp-step { border-color: #fde68a; }
-    .phase-pangkat .kp-step-num { background: #d97706; }
-    .phase-pangkat .kp-tag { background: #fef3c7; color: #92400e; }
-
-    .phase-resolution .kp-phase-header { background: #f3e8ff; color: #7e22ce; }
-    .phase-resolution .kp-step { border-color: #e9d5ff; }
-    .phase-resolution .kp-step-num { background: #7c3aed; }
-    .phase-resolution .kp-tag { background: #f3e8ff; color: #7e22ce; }
-
-    /* Legend */
-    .kp-legend {
-      display: flex; gap: 1.25rem; flex-wrap: wrap;
-      margin-top: 1.25rem; padding-top: 1rem;
-      border-top: 1px solid var(--gray100);
-    }
-    .kp-legend-item {
-      display: flex; align-items: center; gap: .4rem;
-      font-size: .73rem; color: var(--gray600);
-    }
-    .kp-legend-dot {
-      width: 10px; height: 10px; border-radius: 50%;
-    }
-
-    /* System-status links */
-    .status-links { display:flex; gap:.75rem; flex-wrap:wrap; margin-top:1rem; }
-    .status-link {
-      display:inline-flex; align-items:center; gap:.4rem;
-      padding:.4rem .9rem; border-radius:999px; font-size:.78rem; font-weight:600;
-      text-decoration:none; border:1.5px solid transparent; transition:all .15s;
-    }
+    /* Hero banner — full width, flush to edges */
+    .hero-banner{margin-bottom:0;border-radius:0;overflow:hidden;background:linear-gradient(to right,rgba(15,23,42,.85),rgba(15,23,42,.55)),url('../images/Barangay_officials_410.png') center center/cover no-repeat}
+    .hero-banner .inner{display:flex;align-items:center;gap:2rem;padding:2.5rem 2rem 2.5rem 2.5rem;max-width:1100px;margin:0 auto}
+    .eb-hero-seal{width:90px;height:90px;object-fit:cover;border-radius:50%;filter:drop-shadow(0 2px 8px rgba(0,0,0,.4));flex-shrink:0}
+    .eb-hero-text h1{font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:800;color:#fff;margin:0 0 .25rem;line-height:1}
+    .eb-hero-text p{font-size:.82rem;color:rgba(255,255,255,.7);margin:0 0 1rem}
+    .eb-hero-btns{display:flex;gap:.6rem;flex-wrap:wrap}
+    .eb-hero-btn{display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:8px;font-size:.82rem;font-weight:600;text-decoration:none;border:1.5px solid rgba(255,255,255,.35);color:#fff;background:rgba(255,255,255,.1);backdrop-filter:blur(4px);transition:.15s}
+    .eb-hero-btn:hover{background:rgba(255,255,255,.2)}
+    .eb-hero-btn.primary{background:#3b82f6;border-color:#3b82f6}
+    .eb-hero-btn.primary:hover{background:#2563eb}
+    @media(max-width:600px){.hero-banner .inner{flex-direction:column;gap:1rem;padding:1.5rem}.eb-hero-seal{width:64px;height:64px}.eb-hero-text h1{font-size:1.6rem}}
   </style>
 </head>
 <body>
 
+<?php
+$active_page  = 'home';
+$page_title   = '<i class="fas fa-shield-halved" style="opacity:.8;margin-right:5px"></i> eBlotter Dashboard';
+$page_actions = null;
+include '_eb_topbar.php';
+?>
 
-<nav class="eb-navbar">
-  <a class="brand" href="eblotter_home.php">
-    <img src="../eBlotter/images/Barangay_logo_409.png" alt="Logo">Barangay 409
-  </a>
-  <?php $u=currentUser(); if($u): ?>
-  <div style="display:flex;align-items:center;gap:.6rem;margin-left:auto;margin-right:3.5rem;">
-    <span style="font-size:.75rem;color:rgba(255,255,255,.6);">
-      <?php
-        $rIcons=['chairperson'=>'fas fa-crown','secretary'=>'fas fa-user-tie','kagawad'=>'fas fa-user'];
-        $rColors=['chairperson'=>'#fbbf24','secretary'=>'#34d399','kagawad'=>'#60a5fa'];
-        $role=$u['role'];
-        echo "<i class='{$rIcons[$role]}' style='color:{$rColors[$role]};margin-right:4px'></i>";
-        echo htmlspecialchars($u['full_name'])." (".ucfirst($role).")";
-      ?>
-    </span>
-    <a href="logout.php" style="font-size:.75rem;color:rgba(255,255,255,.4);text-decoration:none;"><i class="fas fa-sign-out-alt"></i></a>
-  </div>
-  <?php endif; ?>
-</nav>
-
+<!-- Hero Banner — full width outside main -->
 <div class="hero-banner">
   <div class="inner">
-    <h1>eBlotter</h1>
-    <p>Barangay 409 Case Management System — City of Manila, District IV</p>
-    <div class="hero-actions">
-      <a href="add_case.php"   class="ha-btn"><i class="fas fa-plus"></i> Add Record</a>
-      <a href="view_cases.php" class="ha-btn"><i class="fas fa-list"></i> View Records</a>
+    <img src="../images/brgy410_logo.png" class="eb-hero-seal" style="width:90px;height:90px;object-fit:cover;border-radius:50%;flex-shrink:0">
+    <div class="eb-hero-text">
+      <h1>eBlotter</h1>
+      <p><?= defined('BRGY_NAME') ? htmlspecialchars(BRGY_NAME) : 'Barangay' ?> Case Management System &mdash; <?= defined('BRGY_CITY') ? htmlspecialchars(BRGY_CITY) : 'Manila' ?>, District <?= defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : '' ?></p>
+      <div class="eb-hero-btns">
+        <a href="add_case.php" class="eb-hero-btn primary"><i class="fas fa-plus"></i> Add Record</a>
+        <a href="view_cases.php" class="eb-hero-btn"><i class="fas fa-list"></i> View Records</a>
+      </div>
     </div>
   </div>
 </div>
 
-<?php if(isset($_GET['denied'])): ?>
-<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:.75rem 1.25rem;font-size:.88rem;text-align:center;">
-  <i class="fas fa-lock"></i> You do not have permission to access that page.
-</div>
-<?php endif; ?>
+<main>
+  <?php if(isset($_GET['denied'])): ?>
+  <div class="deny-alert"><i class="fas fa-lock"></i> You do not have permission to access that page.</div>
+  <?php endif; ?>
 
-<main class="eb-main">
-
-  <div class="eb-stat-grid">
-    <div class="eb-stat-card">
-      <h4>Total Records</h4>
-      <div class="num"><?= $totalCases ?></div>
-      <span class="icon"><i class="fas fa-folder"></i></span>
-    </div>
-    <div class="eb-stat-card gold">
-      <h4>Pending</h4>
-      <div class="num"><?= $pendingCases ?></div>
-      <span class="icon"><i class="fas fa-clock"></i></span>
-    </div>
-    <div class="eb-stat-card" style="border-color:#2563eb;">
-      <h4>Ongoing</h4>
-      <div class="num"><?= $ongoingCases ?></div>
-      <span class="icon"><i class="fas fa-spinner"></i></span>
-    </div>
-    <div class="eb-stat-card green">
-      <h4>Resolved</h4>
-      <div class="num"><?= $resolvedCases ?></div>
-      <span class="icon"><i class="fas fa-check-circle"></i></span>
-    </div>
+  <div class="stat-row">
+    <div class="scard"><div class="scard-num" style="color:#0f172a"><?= $totalCases ?></div><div class="scard-lbl">Total Records</div></div>
+    <div class="scard"><div class="scard-num" style="color:#f59e0b"><?= $pendingCases ?></div><div class="scard-lbl">Pending</div></div>
+    <div class="scard"><div class="scard-num" style="color:#3b82f6"><?= $ongoingCases ?></div><div class="scard-lbl">Ongoing</div></div>
+    <div class="scard"><div class="scard-num" style="color:#22c55e"><?= $resolvedCases ?></div><div class="scard-lbl">Resolved</div></div>
   </div>
 
-  <!-- ── KATARUNGAN PAMBARANGAY PROCESS ── -->
+  <!-- Katarungang Pambarangay Process -->
   <div class="kp-card">
     <div class="kp-card-title">
-      <i class="fas fa-balance-scale" style="color:var(--accent)"></i>
+      <i class="fas fa-balance-scale" style="color:#3b82f6"></i>
       Katarungang Pambarangay Process
     </div>
 
@@ -372,30 +262,16 @@ $active_page = 'eBlotter';
 
     </div><!-- /kp-flow -->
 
-    <!-- Legend -->
     <div class="kp-legend">
-      <div class="kp-legend-item">
-        <div class="kp-legend-dot" style="background:#16a34a;"></div>
-        <span>Pending — Filing & Summons stage</span>
-      </div>
-      <div class="kp-legend-item">
-        <div class="kp-legend-dot" style="background:#2563eb;"></div>
-        <span>Ongoing — Mediation / Conciliation stage</span>
-      </div>
-      <div class="kp-legend-item">
-        <div class="kp-legend-dot" style="background:#7c3aed;"></div>
-        <span>Resolved — Settlement or Award executed</span>
-      </div>
-      <div class="kp-legend-item">
-        <div class="kp-legend-dot" style="background:#dc2626;"></div>
-        <span>Escalated — Referred to court</span>
-      </div>
+      <div class="kp-legend-item"><div class="kp-legend-dot" style="background:#16a34a;"></div><span>Pending — Filing &amp; Summons stage</span></div>
+      <div class="kp-legend-item"><div class="kp-legend-dot" style="background:#2563eb;"></div><span>Ongoing — Mediation / Conciliation stage</span></div>
+      <div class="kp-legend-item"><div class="kp-legend-dot" style="background:#7c3aed;"></div><span>Resolved — Settlement or Award executed</span></div>
+      <div class="kp-legend-item"><div class="kp-legend-dot" style="background:#dc2626;"></div><span>Escalated — Referred to court</span></div>
     </div>
-
   </div><!-- /kp-card -->
 
-  <!-- ── RECENT RECORDS ── -->
-  <h2 class="section-title"><i class="fas fa-history" style="color:var(--accent)"></i> Recent Records</h2>
+  <!-- Recent Records -->
+  <h2 class="section-title"><i class="fas fa-history" style="color:#3b82f6"></i> Recent Records</h2>
   <div class="eb-table-wrap">
     <table>
       <thead>
@@ -409,7 +285,7 @@ $active_page = 'eBlotter';
       </thead>
       <tbody>
         <?php if ($recent->num_rows === 0): ?>
-          <tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--gray400);">No records yet.</td></tr>
+          <tr><td colspan="5" style="text-align:center;padding:2rem;color:#94a3b8;">No records yet.</td></tr>
         <?php else: ?>
           <?php while ($r = $recent->fetch_assoc()):
             $cls = match($r['status']) {
@@ -432,5 +308,11 @@ $active_page = 'eBlotter';
   </div>
 
 </main>
+
+<footer>
+  &copy; <?= date('Y') ?> <?= defined('BRGY_NAME') ? htmlspecialchars(BRGY_NAME) : 'Barangay' ?>, <?= defined('BRGY_CITY') ? htmlspecialchars(BRGY_CITY) : 'Manila' ?> &mdash; ProjectRBI &amp; eBlotter System
+</footer>
+
 </body>
 </html>
+

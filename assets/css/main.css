@@ -70,7 +70,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .form-row-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px}
 .form-group label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px}
 .form-control{width:100%;border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;font-family:'Inter',sans-serif;color:var(--text);background:var(--bg);outline:none;transition:border .2s}
-.form-control:focus{border-color:var(--blue);background:#fff}
+.form-control:focus{border-color:var(--blue)}
 .required{color:var(--rose)}
 .form-section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:10px 0 6px;border-bottom:1px solid var(--border);margin-bottom:10px;display:flex;align-items:center;gap:8px}
 
@@ -100,7 +100,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .btn-nav:hover{background:rgba(255,255,255,.16)!important}
 
 /* ── REGISTER FORM STYLES (from original register.css) ── */
-.contain{max-width:960px;margin:2rem auto 4rem;background:#fff;padding:2.5rem 3rem;border-radius:12px;border:1px solid var(--border);box-shadow:0 4px 20px rgba(0,0,0,.05)}
+.contain{max-width:960px;margin:2rem auto 4rem;padding:2.5rem 3rem;border-radius:12px;border:1px solid var(--border);box-shadow:0 4px 20px rgba(0,0,0,.05)}
 .form-card h2{font-family:'Syne',sans-serif;font-weight:700;font-size:1.15rem;margin-bottom:1.25rem;color:#0f172a;border-bottom:2px solid var(--blue);padding-bottom:.5rem}
 .form-step{display:none}.form-step.active{display:block}
 
@@ -119,7 +119,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 
 /* Form inputs */
 label{font-family:'Inter',sans-serif;display:block;margin-bottom:.4rem;font-weight:600;color:#374151;font-size:.875rem}
-input[type="text"],input[type="email"],input[type="date"],input[type="number"],select,textarea{width:100%;padding:.75rem 1rem;margin-bottom:1rem;border:1px solid var(--border);border-radius:8px;font-size:.9rem;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s,box-shadow .2s;box-sizing:border-box;background:#fff;color:var(--text)}
+input[type="text"],input[type="email"],input[type="date"],input[type="number"],select,textarea{width:100%;padding:.75rem 1rem;margin-bottom:1rem;border:1px solid var(--border);border-radius:8px;font-size:.9rem;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s,box-shadow .2s;box-sizing:border-box;color:var(--text)}
 input[type="text"]:focus,input[type="email"]:focus,input[type="date"]:focus,input[type="number"]:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.1)}
 .name-row{display:flex;gap:16px;margin-bottom:0}
 .name-group{flex:1;display:flex;flex-direction:column}

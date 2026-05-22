@@ -1,9 +1,23 @@
-<?php
+﻿<?php
 require_once __DIR__.'/auth.php';
 requireRole(['chairperson','secretary']); // documents: kagawad cannot access
 
 $case_id = trim($_GET['case_id'] ?? '');
 
+// auth.php; fallback for safety
+if (!function_exists("verifyCurrentUserOrChairPassword")) {
+    function verifyCurrentUserOrChairPassword(mysqli $conn, string $attempt): bool {
+        if (isChairperson()) {
+            $uid = currentUser()['id'];
+            $s = $conn->prepare("SELECT password FROM admins WHERE id=? LIMIT 1");
+            if (!$s) return false;
+            $s->bind_param('i', $uid); $s->execute();
+            $row = $s->get_result()->fetch_assoc();
+            return $row && password_verify($attempt, $row['password']);
+        }
+        return verifyChairpersonPassword($conn, $attempt);
+    }
+}
 // Password gate
 $_pwGateOk = false;
 $docPwError = '';
@@ -36,7 +50,9 @@ if ($case_id) {
     $stmtSS->execute();
     $savedSummons = $stmtSS->get_result()->fetch_assoc();
 }
-// sv_saved() is defined in auth.php
+function sv($saved, $key, $fallback='') {
+    return htmlspecialchars($saved[$key] ?? $fallback);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -44,15 +60,16 @@ if ($case_id) {
   <meta charset="UTF-8">
   <title>Summons - eBlotter</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="eblotter.css">
+  <link rel="stylesheet" href="../assets/css/main.css?v=<?=filemtime(dirname(__DIR__).'/assets/css/main.css')?>">
+  <link rel="stylesheet" href="eblotter.css?v=<?=filemtime(__DIR__.'/eblotter.css')?>">
   <style>
-    .doc-container{max-width:720px;margin:2rem auto;background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
+    .doc-container{max-width:720px;margin:2rem auto;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
     .doc-toolbar{background:var(--navy);padding:.85rem 1.25rem;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;}
     .doc-toolbar select{border-radius:6px;border:none;padding:.4rem .7rem;font-family:inherit;font-size:.84rem;flex:1;min-width:180px;}
 
-    .doc-body{padding:1.2cm 1.8cm;font-family:'Times New Roman',Times,serif;background:#fff;}
+    .doc-body{padding:1.2cm 1.8cm;font-family:'Times New Roman',Times,serif;}
 
     /* HEADER with logos */
     .summons-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.4cm;}
@@ -103,7 +120,7 @@ if ($case_id) {
       text-align: center;
     }
     .pw-gate-modal .lock-icon { font-size: 2.5rem; color: var(--navy); margin-bottom: 1rem; }
-    .pw-gate-modal h3 { font-family: 'DM Serif Display',serif; font-size: 1.25rem; color: var(--navy); margin-bottom: .35rem; }
+    .pw-gate-modal h3 { font-family: 'Syne',sans-serif; font-size: 1.25rem; color: var(--navy); margin-bottom: .35rem; }
     .pw-gate-modal p { font-size: .85rem; color: var(--gray400); margin-bottom: 1.25rem; }
     .pw-gate-modal input {
       width: 100%; border: 1.5px solid var(--gray200); border-radius: 9px;
@@ -115,6 +132,13 @@ if ($case_id) {
   </style>
 </head>
 <body>
+<?php
+$hero_mode   = true;
+$hero_title  = 'Summons';
+$hero_active = 'view';
+include '_eb_topbar.php';
+include '_eb_hero.php';
+?>
 
 <!-- PASSWORD GATE OVERLAY -->
 <?php if (!$_pwGateOk): ?>
@@ -137,35 +161,8 @@ if ($case_id) {
 </div>
 <style>body { overflow: hidden; }</style>
 <?php endif; ?>
-<nav class="eb-navbar">
-  <a class="brand" href="eblotter_home.php">
-    <img src="../eBlotter/images/Barangay_logo_409.png" alt="Logo">Barangay 409</a>
-  <?php $u=currentUser(); if($u): ?>
-  <div style="display:flex;align-items:center;gap:.5rem;margin-left:auto;margin-right:3.5rem;font-size:.75rem;color:rgba(255,255,255,.6);">
-    <?php
-      $rIcons=['chairperson'=>'fas fa-crown','secretary'=>'fas fa-user-tie','kagawad'=>'fas fa-user'];
-      $rColors=['chairperson'=>'#fbbf24','secretary'=>'#34d399','kagawad'=>'#60a5fa'];
-      $role=$u['role'];
-      echo "<i class='{$rIcons[$role]}' style='color:{$rColors[$role]};margin-right:4px'></i>";
-      echo htmlspecialchars($u['full_name'])." (".ucfirst($role).")";
-    ?>
-    &nbsp;<a href="logout.php" style="color:rgba(255,255,255,.4);text-decoration:none;"><i class="fas fa-sign-out-alt"></i></a>
-  </div>
-  <?php endif; ?>
-</nav>
-<div class="hero-banner">
-  <div class="inner">
-    <h1>Summons</h1>
-    <p>Barangay 409 Case Management System — City of Manila, District IV</p>
-    <div class="hero-actions">
-      <a href="eblotter_home.php" class="ha-btn"><i class="fas fa-home"></i> Home</a>
-      <a href="add_case.php"      class="ha-btn"><i class="fas fa-plus-circle"></i> Add Record</a>
-      <a href="view_cases.php"    class="ha-btn"><i class="fas fa-list"></i> View Records</a>
-    </div>
-  </div>
-</div>
 
-<main class="eb-main">
+<main style="padding:1.5rem;max-width:1100px;margin:0 auto">
 <div class="doc-container">
   <div class="doc-toolbar">
     <select onchange="if(this.value) window.location.href='summons.php?case_id='+encodeURIComponent(this.value)">
@@ -198,7 +195,6 @@ if ($case_id) {
 
   <form id="draftForm" method="post" action="save_draft.php" style="display:none;">
     <input type="hidden" name="doc_type"     value="summons">
-    <input type="hidden" name="csrf_token"   value="<?= htmlspecialchars(csrfToken()) ?>">
     <input type="hidden" name="case_id"      id="draftCaseId"      value="<?= htmlspecialchars($case_id) ?>">
     <input type="hidden" name="to_name"      id="draftToName">
     <input type="hidden" name="hearing_day"  id="draftHDay">
@@ -247,8 +243,8 @@ if ($case_id) {
       <div class="center-text">
         Republic of the Philippines<br>
         City of Manila<br>
-        <strong>Barangay 409 Zone 42</strong><br>
-        District IV
+        <strong><?= defined('BRGY_FULLNAME') ? htmlspecialchars(BRGY_FULLNAME) : 'Barangay 410 Zone 42' ?></strong><br>
+        District <?= defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV' ?>
       </div>
     </div>
     <div class="office-line">Office of the Lupong Tagapamayapa</div>
@@ -278,14 +274,14 @@ if ($case_id) {
     <div class="summons-title">S U M M O N S</div>
 
     <div class="body-text">
-      <p>To: <input type="text" class="il" id="toField" value="<?= sv_saved($savedSummons,'to_name',$rFull) ?>" style="min-width:10cm;"></p>
+      <p>To: <input type="text" class="il" id="toField" value="<?= sv($savedSummons,'to_name',$rFull) ?>" style="min-width:10cm;"></p>
       <p style="font-weight:700;">Respondent/s</p>
       <p>
         &nbsp;&nbsp;&nbsp;&nbsp;You are hereby summoned to appear before me in person together with your witnesses,
-        on the <input class="il" id="dayIn" placeholder="____" style="min-width:1.4cm;" value="<?= sv_saved($savedSummons,'hearing_day') ?>"> day of
-        <input class="il" id="moIn" placeholder="__________" style="min-width:3.5cm;" value="<?= sv_saved($savedSummons,'hearing_mo') ?>">
-        <strong>20</strong><input class="il" id="yrIn" placeholder="__" style="min-width:1cm;" value="<?= sv_saved($savedSummons,'hearing_yr') ?>"> at
-        <input class="il" id="timeIn" placeholder="______" style="min-width:1.8cm;" value="<?= sv_saved($savedSummons,'hearing_time') ?>"> am/pm, then and there to answer to a
+        on the <input class="il" id="dayIn" placeholder="____" style="min-width:1.4cm;" value="<?= sv($savedSummons,'hearing_day') ?>"> day of
+        <input class="il" id="moIn" placeholder="__________" style="min-width:3.5cm;" value="<?= sv($savedSummons,'hearing_mo') ?>">
+        <strong>20</strong><input class="il" id="yrIn" placeholder="__" style="min-width:1cm;" value="<?= sv($savedSummons,'hearing_yr') ?>"> at
+        <input class="il" id="timeIn" placeholder="______" style="min-width:1.8cm;" value="<?= sv($savedSummons,'hearing_time') ?>"> am/pm, then and there to answer to a
         complaint made before me, copy of which is attached hereto, for mediation/conciliation of your dispute with complainant/s.
       </p>
       <p>
@@ -294,8 +290,8 @@ if ($case_id) {
       </p>
       <p>FAIL NOT or else face punishment as for contempt of court.</p>
       <p>
-        This <input class="il" id="thisDayIn" placeholder="________" style="min-width:2.5cm;" value="<?= sv_saved($savedSummons,'this_day') ?>"> day of
-        <input class="il" id="thisMoIn" placeholder="______________" style="min-width:4.5cm;" value="<?= sv_saved($savedSummons,'this_mo') ?>">, 20<input class="il" id="thisYrIn" placeholder="__" style="min-width:1cm;" value="<?= sv_saved($savedSummons,'this_yr') ?>">.
+        This <input class="il" id="thisDayIn" placeholder="________" style="min-width:2.5cm;" value="<?= sv($savedSummons,'this_day') ?>"> day of
+        <input class="il" id="thisMoIn" placeholder="______________" style="min-width:4.5cm;" value="<?= sv($savedSummons,'this_mo') ?>">, 20<input class="il" id="thisYrIn" placeholder="__" style="min-width:1cm;" value="<?= sv($savedSummons,'this_yr') ?>">.
       </p>
     </div>
 
@@ -311,17 +307,16 @@ if ($case_id) {
       <div class="return-title">Officer's Return</div>
       <div class="return-text">
         I served this summons upon respondent
-        <input class="il" id="orRespondentIn" style="min-width:6cm;" value="<?= sv_saved($savedSummons,'or_respondent') ?>"> on the
-        <input class="il" id="orDayIn" style="min-width:1.4cm;" value="<?= sv_saved($savedSummons,'or_day') ?>"> day of
-        <input class="il" id="orMoIn" style="min-width:4.5cm;" value="<?= sv_saved($savedSummons,'or_mo') ?>">,
-        <strong>20</strong><input class="il" id="orYrIn" style="min-width:1cm;" value="<?= sv_saved($savedSummons,'or_yr') ?>">.
+        <input class="il" id="orRespondentIn" style="min-width:6cm;" value="<?= sv($savedSummons,'or_respondent') ?>"> on the
+        <input class="il" id="orDayIn" style="min-width:1.4cm;" value="<?= sv($savedSummons,'or_day') ?>"> day of
+        <input class="il" id="orMoIn" style="min-width:4.5cm;" value="<?= sv($savedSummons,'or_mo') ?>">,
+        <strong>20</strong><input class="il" id="orYrIn" style="min-width:1cm;" value="<?= sv($savedSummons,'or_yr') ?>">.
       </div>
       <div class="return-options" style="margin-top:.3cm;">
-        <input class="il" id="orOpt1In" style="min-width:1.4cm;" value="<?= sv_saved($savedSummons,'or_opt1') ?>"> 1. Handing to him/them said summons in person, or<br>
-        <input class="il" id="orOpt2In" style="min-width:1.4cm;" value="<?= sv_saved($savedSummons,'or_opt2') ?>"> 2. Handing to him/them said summons and he/they refused to received it, or<br>
-        <input class="il" id="orOpt3In" style="min-width:1.4cm;" value="<?= sv_saved($savedSummons,'or_opt3') ?>"> 3. Leaving said summons at his/their dwelling with <input class="il" id="orName3In" autocomplete="new-password" style="min-width:5cm;" value=""> (name) a person suitable age and discretion residing therein, or<br>
-        <input class="il" id="orOpt4In" style="min-width:1.4cm;" value=""> 4. Leaving said summons at his/their office/place of business with <input class="il" id="orName4In" readonly style="min-width:5cm;" value=""> (name) a competent person in charge thereof.
-      </div><!-- /return-options -->
+        <input class="il" id="orOpt1In" autocomplete="off" style="min-width:1.4cm;" value="<?= sv($savedSummons,'or_opt1') ?>"> 1. Handing to him/them said summons in person, or<br>
+        <input class="il" id="orOpt2In" autocomplete="off" style="min-width:1.4cm;" value="<?= sv($savedSummons,'or_opt2') ?>"> 2. Handing to him/them said summons and he/they refused to received it, or<br>
+        <input class="il" id="orOpt3In" autocomplete="off" style="min-width:1.4cm;" value="<?= sv($savedSummons,'or_opt3') ?>"> 3. Leaving said summons at his/their dwelling with <input class="il" id="orName3In" autocomplete="off" style="min-width:5cm;" value=""> (name) a person suitable age and discretion residing therein, or<br>
+        <input class="il" id="orOpt4In" autocomplete="off" style="min-width:1.4cm;" value=""> 4. Leaving said summons at his/their office/place of business with <input class="il" id="orName4In" autocomplete="off" style="min-width:5cm;" value=""> (name) a competent person in charge thereof.
       <!-- Officer sig — right -->
       <div class="sig-right" style="margin-top:.5cm;">
         <div class="sig-line"></div>
@@ -467,6 +462,6 @@ document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeExpo
     </div>
   </div>
 </div>
-
+<?php include '_eb_footer.php'; ?>
 </body>
 </html>

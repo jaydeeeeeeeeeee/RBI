@@ -2,19 +2,36 @@
 if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__.'/db.php';
 
-// Ph Timezone 
 date_default_timezone_set('Asia/Manila');
+
+// Bridge ProjectRBI session → eBlotter session format
+// ProjectRBI roles: captain → chairperson, secretary → secretary, guest → kagawad
+if (isset($_SESSION['admin']) && !isset($_SESSION['eb_user'])) {
+    $roleMap = [
+        'captain'   => 'chairperson',
+        'secretary' => 'secretary',
+        'guest'     => 'kagawad',
+    ];
+    $rbi_role = $_SESSION['role'] ?? 'guest';
+    $eb_role  = $roleMap[$rbi_role] ?? 'kagawad';
+    $_SESSION['eb_user'] = [
+        'id'        => $_SESSION['admin_id'] ?? 0,
+        'username'  => $_SESSION['admin'],
+        'full_name' => $_SESSION['full_name'] ?? $_SESSION['admin'],
+        'role'      => $eb_role,
+    ];
+}
 
 function currentUser(): ?array { return $_SESSION['eb_user'] ?? null; }
 function currentRole(): string { return $_SESSION['eb_user']['role'] ?? ''; }
 function isChairperson(): bool  { return currentRole() === 'chairperson'; }
-function isSecretary():  bool  { return currentRole() === 'secretary';  }
-function isKagawad():    bool  { return currentRole() === 'kagawad';    }
-function canEdit():      bool  { return in_array(currentRole(), ['chairperson','secretary']); }
+function isSecretary():  bool   { return currentRole() === 'secretary';  }
+function isKagawad():    bool   { return currentRole() === 'kagawad';    }
+function canEdit():      bool   { return in_array(currentRole(), ['chairperson','secretary']); }
 
 function requireRole(array $allowed = ['chairperson','secretary','kagawad']): void {
     $u = currentUser();
-    if (!$u) { header('Location: login.php'); exit(); }
+    if (!$u) { header('Location: ../admin.php'); exit(); }
     if (!in_array($u['role'], $allowed)) { header('Location: eblotter_home.php?denied=1'); exit(); }
 }
 
@@ -32,23 +49,13 @@ function markExported(mysqli $conn, string $case_id, string $docType = 'PDF'): v
     if ($stmt) { $stmt->bind_param('sss',$name,$now,$case_id); $stmt->execute(); }
 }
 
-// ── signer Name 
-
-define('DEFAULT_SIGNER_NAME', 'BRENDA S. PUERTOLLANO');
+// db.php already loaded config.php, so BLOTTER_DEFAULT_SIGNER may be defined
+define('DEFAULT_SIGNER_NAME', defined('BLOTTER_DEFAULT_SIGNER') ? BLOTTER_DEFAULT_SIGNER : 'BRENDA S. PUERTOLLANO');
 
 function ensureSignerTable(mysqli $conn): void {
     static $done = false;
     if ($done) return;
-    $conn->query("
-        CREATE TABLE IF NOT EXISTS eb_signer_settings (
-            id          INT          NOT NULL DEFAULT 1,
-            signer_name VARCHAR(200) NOT NULL,
-            updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
-                        ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    ");
-    $done = true;
+    $done = true; // table already created in db.php
 }
 
 function getSignerName(mysqli $conn): string {
@@ -68,50 +75,39 @@ function setSignerOverride(mysqli $conn, string $name, string $chapw = ''): bool
     if (isSecretary()) {
         if (!$chapw || !verifyChairpersonPassword($conn, $chapw)) return false;
     }
-
     $name = strtoupper(trim($name));
     if ($name === '') return false;
-
     ensureSignerTable($conn);
-    $stmt = $conn->prepare("
-        INSERT INTO eb_signer_settings (id, signer_name)
-        VALUES (1, ?)
-        ON DUPLICATE KEY UPDATE signer_name = VALUES(signer_name), updated_at = NOW()
-    ");
+    $stmt = $conn->prepare("INSERT INTO eb_signer_settings (id, signer_name) VALUES (1, ?) ON DUPLICATE KEY UPDATE signer_name = ?, updated_at = NOW()");
     if (!$stmt) return false;
-    $stmt->bind_param('s', $name);
+    $stmt->bind_param('ss', $name, $name);
     return $stmt->execute();
 }
 
-/**
- * Resets the signer name back to the system default
- */
 function resetSignerToDefault(mysqli $conn): bool {
     if (!isChairperson()) return false;
     ensureSignerTable($conn);
     $default = DEFAULT_SIGNER_NAME;
-    $stmt = $conn->prepare("
-        INSERT INTO eb_signer_settings (id, signer_name)
-        VALUES (1, ?)
-        ON DUPLICATE KEY UPDATE signer_name = VALUES(signer_name), updated_at = NOW()
-    ");
+    $stmt = $conn->prepare("INSERT INTO eb_signer_settings (id, signer_name) VALUES (1, ?) ON DUPLICATE KEY UPDATE signer_name = ?, updated_at = NOW()");
     if (!$stmt) return false;
-    $stmt->bind_param('s', $default);
+    $stmt->bind_param('ss', $default, $default);
     return $stmt->execute();
 }
 
+// Verify the captain's password from the ProjectRBI admins table
 function verifyChairpersonPassword(mysqli $conn, string $pw): bool {
-    $stmt = $conn->prepare("SELECT password FROM eb_users WHERE role='chairperson' AND is_active=1 LIMIT 1");
+    $stmt = $conn->prepare("SELECT password FROM admins WHERE role='captain' AND is_active=1 LIMIT 1");
     if (!$stmt) return false;
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
     return $row && password_verify($pw, $row['password']);
 }
 
+// Chairperson verifies own password; secretary/kagawad must enter captain's password
 function verifyCurrentUserOrChairPassword(mysqli $conn, string $attempt): bool {
     if (isChairperson()) {
         $uid = currentUser()['id'];
-        $s = $conn->prepare("SELECT password FROM eb_users WHERE id=? LIMIT 1");
+        $s = $conn->prepare("SELECT password FROM admins WHERE id=? LIMIT 1");
         if (!$s) return false;
         $s->bind_param('i', $uid);
         $s->execute();
@@ -141,6 +137,7 @@ function verifyCsrf(): void {
         die('CSRF token mismatch. Please go back and try again.');
     }
 }
+
 // ── Shared saved-value helper (used by summons, notice, mediation pages) ──
 if (!function_exists('sv_saved')) {
     function sv_saved(?array $saved, string $key, string $fallback = ''): string {

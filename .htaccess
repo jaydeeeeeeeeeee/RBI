@@ -1,0 +1,12 @@
+# ── Disable caching for all files during development ─────────────────────────
+<IfModule mod_headers.c>
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires "Thu, 01 Jan 1970 00:00:00 GMT"
+</IfModule>
+
+# Also disable ETags so browsers don't use conditional requests
+FileETag None
+<IfModule mod_headers.c>
+    Header unset ETag
+</IfModule>

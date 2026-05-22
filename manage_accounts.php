@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 if(!isset($_SESSION['admin'])){header("Location: admin.php");exit();}
 include 'Admin_DB.php';
@@ -168,7 +168,7 @@ $role_info=[
 <title>Manage Accounts – ProjectRBI</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-<link rel="stylesheet" href="assets/css/main.css"/>
+<link rel="stylesheet" href="assets/css/main.css?v=<?=filemtime(__DIR__.'/assets/css/main.css')?>"/>
 <style>
 .page-top{background:#0f172a;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
 .page-top h1{color:#fff;font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800}
@@ -198,7 +198,7 @@ main{padding:1.5rem;max-width:980px;margin:0 auto}
 /* Update / Change buttons: outline style, not blue */
 .acc-body button[type="submit"]{background:#fff!important;color:#374151!important;border:1px solid #d1d5db!important;padding:7px 13px!important;font-size:12px!important;font-weight:600!important;min-width:unset!important;border-radius:8px!important;white-space:nowrap}
 .acc-body button[type="submit"]:hover{background:#f1f5f9!important}
-.acc-footer{padding:.75rem 1.5rem;border-top:1px solid #f1f5f9;display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#fff}
+.acc-footer{padding:.75rem 1.5rem;border-top:1px solid #f1f5f9;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 
 .create-card{background:#fff;border:2px dashed #e2e8f0;border-radius:14px;padding:2rem;margin-bottom:1.25rem;transition:border-color .2s}
 .create-card:hover{border-color:#3b82f6}
@@ -242,7 +242,11 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
 </head>
 <body>
 <header class="topbar" style="gap:12px">
-  <a href="Home.php" class="topbar-brand" style="flex-shrink:0"><div class="topbar-logo">410</div><div><div class="topbar-name">Barangay 410</div><div class="topbar-sub">Account Management</div></div></a>
+  <a href="Home.php" class="topbar-brand" style="flex-shrink:0">
+    <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0">
+      <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
+    </div>
+    <div><div class="topbar-name">Barangay 410</div><div class="topbar-sub">Account Management</div></div></a>
   <div style="display:flex;align-items:center;gap:6px;border-left:1px solid rgba(255,255,255,.12);padding-left:14px">
     <span style="font-size:13px;font-weight:700;color:#fff;font-family:'Syne',sans-serif"><i class="fas fa-users-gear" style="opacity:.8;margin-right:5px"></i> Account Management</span>
   </div>
@@ -498,3 +502,10 @@ function selectRole(r){
 </script>
 </body>
 </html>
+
+
+
+
+
+
+

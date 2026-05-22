@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once __DIR__.'/auth.php';
 requireRole(); // all roles can add records
 // date_default_timezone_set already called in auth.php
@@ -31,7 +31,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     elseif ($when > $today)          $errors[] = "Incident date cannot be in the future.";
     if (empty($bc))                  $errors[] = "Description is required.";
     if (empty($where))               $errors[] = "Location is required.";
-    // FIX #6: also validate complainant_address server-side
     if ($cf===''||$cl===''||$rf===''||$rl==='')
                                      $errors[] = "Complainant and respondent first/last names are required.";
     if (empty($caddr))               $errors[] = "Complainant address is required.";
@@ -43,14 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $uname  = currentUser()['full_name'];
         $status = "Pending";
 
-        // FIX #3: Use a dedicated sequence lock row to safely derive the next
-        // case ID without race conditions.
-        // The eb_case_sequence table holds one row per year with an
-        // AUTO_INCREMENT-like counter. We SELECT ... FOR UPDATE to lock that
-        // single row, increment it, and INSERT atomically — no window for
-        // two sessions to get the same number.
-        //
-        // Create the sequence table once if it doesn't exist:
+        // Sequence table prevents race-condition duplicate case IDs
         $conn->query("
             CREATE TABLE IF NOT EXISTS eb_case_sequence (
                 seq_year  CHAR(4)      NOT NULL,
@@ -60,8 +52,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ");
 
         $conn->begin_transaction();
-
-        // Lock the row for this year (INSERT IGNORE ensures it exists first)
         $stmtIns = $conn->prepare("INSERT IGNORE INTO eb_case_sequence (seq_year, seq_next) VALUES (?, 1)");
         $stmtIns->bind_param('s', $year); $stmtIns->execute();
         $stmtSel = $conn->prepare("SELECT seq_next FROM eb_case_sequence WHERE seq_year=? FOR UPDATE");
@@ -69,9 +59,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $seqRes  = $stmtSel->get_result();
         $seqRow  = $seqRes ? $seqRes->fetch_assoc() : null;
         $seqNum  = $seqRow ? (int)$seqRow['seq_next'] : 1;
-        $case_id = "BRGY 409 - " . str_pad($seqNum, 4, '0', STR_PAD_LEFT) . "-$year";
-
-        // Advance the counter
+        $prefix  = defined('BLOTTER_CASE_PREFIX') ? BLOTTER_CASE_PREFIX : 'BRGY 410';
+        $case_id = "$prefix - " . str_pad($seqNum, 4, '0', STR_PAD_LEFT) . "-$year";
         $stmtUpd = $conn->prepare("UPDATE eb_case_sequence SET seq_next=seq_next+1 WHERE seq_year=?");
         $stmtUpd->bind_param('s', $year); $stmtUpd->execute();
 
@@ -106,9 +95,10 @@ $active_page = 'add';
   <meta charset="UTF-8">
   <title>Add Record - eBlotter</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="eblotter.css">
+  <link rel="stylesheet" href="../assets/css/main.css?v=<?=filemtime(dirname(__DIR__).'/assets/css/main.css')?>">
+  <link rel="stylesheet" href="eblotter.css?v=<?=filemtime(__DIR__.'/eblotter.css')?>">
   <style>
     .disp-cards { display: flex; gap: 1rem; margin-top: .5rem; }
     .disp-card  { flex: 1; border: 2px solid var(--gray200); border-radius: 12px; padding: 1.25rem; cursor: pointer; transition: border-color .2s, background .2s; text-align: center; }
@@ -139,37 +129,14 @@ $active_page = 'add';
 <body>
 
 
-<nav class="eb-navbar">
-  <a class="brand" href="eblotter_home.php">
-    <img src="../eBlotter/images/Barangay_logo_409.png" alt="Logo">Barangay 409
-  </a>
-  <?php $u=currentUser(); if($u): ?>
-  <div style="display:flex;align-items:center;gap:.5rem;margin-left:auto;margin-right:3.5rem;font-size:.75rem;color:rgba(255,255,255,.6);">
-    <?php
-      $rIcons=['chairperson'=>'fas fa-crown','secretary'=>'fas fa-user-tie','kagawad'=>'fas fa-user'];
-      $rColors=['chairperson'=>'#fbbf24','secretary'=>'#34d399','kagawad'=>'#60a5fa'];
-      $role=$u['role'];
-      echo "<i class='{$rIcons[$role]}' style='color:{$rColors[$role]};margin-right:4px'></i>";
-      echo htmlspecialchars($u['full_name'])." (".ucfirst($role).")";
-    ?>
-    &nbsp;<a href="logout.php" style="color:rgba(255,255,255,.4);text-decoration:none;"><i class="fas fa-sign-out-alt"></i></a>
-  </div>
-  <?php endif; ?>
-</nav>
-
-<div class="hero-banner">
-  <div class="inner">
-    <h1>Add Blotter Record</h1>
-    <p>Barangay 409 Case Management System — City of Manila, District IV</p>
-    <div class="hero-actions">
-    <a href="eblotter_home.php" class="ha-btn"><i class="fas fa-home"></i> Home</a>
-    <a href="add_case.php"   class="ha-btn active"><i class="fas fa-plus-circle"></i> Add Record</a>
-    <a href="view_cases.php" class="ha-btn"><i class="fas fa-list"></i> View Records</a>
-  </div>
-  </div>
-</div>
-
-<main class="eb-main">
+<?php
+$hero_mode   = true;
+$hero_title  = 'Add Record';
+$hero_active = 'add';
+include '_eb_topbar.php';
+include '_eb_hero.php';
+?>
+<main style="padding:1.5rem;max-width:1100px;margin:0 auto">
 <div class="eb-form-card">
 
   <?php if ($errors): ?>
@@ -202,7 +169,7 @@ $active_page = 'add';
 
     <!-- STEP 0 -->
     <div class="eb-step visible" id="step0">
-      <h2 class="eb-form-card" style="font-family:'DM Serif Display',serif;font-size:1.4rem;color:var(--navy);margin-bottom:1rem;">
+      <h2 class="eb-form-card" style="font-family:'Syne',sans-serif;font-size:1.4rem;color:var(--navy);margin-bottom:1rem;">
         What type of record is this?
       </h2>
       <div class="disp-cards">
@@ -223,7 +190,7 @@ $active_page = 'add';
 
     <!-- STEP 1 -->
     <div class="eb-step" id="step1">
-      <h2 style="font-family:'DM Serif Display',serif;font-size:1.1rem;color:var(--navy);margin-bottom:1rem;">
+      <h2 style="font-family:'Syne',sans-serif;font-size:1.1rem;color:var(--navy);margin-bottom:1rem;">
         <i class="fas fa-user" style="color:var(--accent)"></i> Complainant Information
       </h2>
       <div class="name-row">
@@ -243,7 +210,7 @@ $active_page = 'add';
 
     <!-- STEP 2 -->
     <div class="eb-step" id="step2">
-      <h2 style="font-family:'DM Serif Display',serif;font-size:1.1rem;color:var(--navy);margin-bottom:1rem;">
+      <h2 style="font-family:'Syne',sans-serif;font-size:1.1rem;color:var(--navy);margin-bottom:1rem;">
         <i class="fas fa-user-shield" style="color:var(--red)"></i> Respondent Information
       </h2>
       <div class="name-row">
@@ -256,7 +223,7 @@ $active_page = 'add';
 
     <!-- STEP 3 -->
     <div class="eb-step" id="step3">
-      <h2 style="font-family:'DM Serif Display',serif;font-size:1.1rem;color:var(--navy);margin-bottom:1rem;">
+      <h2 style="font-family:'Syne',sans-serif;font-size:1.1rem;color:var(--navy);margin-bottom:1rem;">
         <i class="fas fa-file-alt" style="color:var(--gold)"></i> Description of Incident
       </h2>
       <div class="eb-row">
@@ -359,5 +326,6 @@ nextBtn.addEventListener('click', () => { if (validate(cur)) { cur++; showStep(c
 prevBtn.addEventListener('click', () => { cur--; showStep(cur); });
 showStep(0);
 </script>
+<?php include '_eb_footer.php'; ?>
 </body>
 </html>
