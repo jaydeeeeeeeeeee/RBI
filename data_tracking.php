@@ -3,6 +3,7 @@ session_start();
 if (!isset($_SESSION['admin'])) { header("Location: admin.php"); exit(); }
 include 'Residents_DB.php';
 include 'role_helper.php';
+include 'signatory_helper.php';
 if ($is_guest) { header("Location: Home.php?denied=tracking"); exit(); }
 
 $admin = $_SESSION['admin'];
@@ -41,7 +42,7 @@ if ($tmpl_cnt === 0) {
         ('Business Permit')");
 }
 
-// ── Certificate settings & signatory ─────────────────────────────────────────
+// ── Certificate settings ──────────────────────────────────────────────────────
 $conn->query("CREATE TABLE IF NOT EXISTS settings (
     `key`      VARCHAR(100) PRIMARY KEY,
     `value`    TEXT,
@@ -51,10 +52,11 @@ function get_setting($conn, $key, $default = '') {
     $r = $conn->query("SELECT `value` FROM settings WHERE `key`='" . $conn->real_escape_string($key) . "'")->fetch_assoc();
     return $r ? $r['value'] : $default;
 }
-$sig_raw  = get_setting($conn, 'cert_signatory', '{}');
-$cert_sig = json_decode($sig_raw, true) ?? [];
-$sig_name  = $cert_sig['name']  ?? '';
-$sig_title = $cert_sig['title'] ?? 'Punong Barangay';
+// Pull signatories from central table
+$_dt_sigs  = getSignatories($conn);
+$sig_name  = $_dt_sigs['captain']['full_name']   ?? '';
+$sig_title = $_dt_sigs['captain']['title']        ?? 'Punong Barangay';
+$sec_name_val = $_dt_sigs['secretary']['full_name'] ?? '';
 
 // ── AJAX: resident search ─────────────────────────────────────────────────────
 if (isset($_GET['ajax_search'])) {
@@ -172,19 +174,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         $msg = 'Audit entry deleted.'; $msg_type = 'success';
     }
 
-    // Save signatory
-    if ($_POST['action'] === 'save_signatory' && $is_captain) {
-        $sn  = trim($_POST['sig_name'] ?? '');
-        $st  = trim($_POST['sig_title'] ?? 'Punong Barangay');
-        $val = $conn->real_escape_string(json_encode(['name' => $sn, 'title' => $st]));
-        $conn->query("INSERT INTO settings (`key`,`value`) VALUES ('cert_signatory','$val') ON DUPLICATE KEY UPDATE `value`='$val'");
-        // Save secretary too
-        $secn = trim($_POST['sec_name'] ?? '');
-        $secv = $conn->real_escape_string(json_encode(['name' => $secn]));
-        $conn->query("INSERT INTO settings (`key`,`value`) VALUES ('cert_secretary','$secv') ON DUPLICATE KEY UPDATE `value`='$secv'");
-        $sig_name = $sn; $sig_title = $st;
-        $msg = 'Signatories saved.'; $msg_type = 'success';
-    }
 }
 
 // ── Fetch data ────────────────────────────────────────────────────────────────
@@ -262,7 +251,7 @@ $_dt_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
   <style>
     :root { --red:#ef4444;--red-lt:#fef2f2;--gold:#f59e0b;--gold-lt:#fffbeb; }
 
-    .page-hero { background:linear-gradient(to right,rgba(15,23,42,.92),rgba(15,23,42,.68)),url('images/Barangay_officials_410.png') center 60%/cover no-repeat; padding:2.5rem 2rem; }
+    .page-hero { background:linear-gradient(to right,rgba(15,23,42,.85),rgba(15,23,42,.55)),url('images/Barangay_officials_410.png') center center/cover no-repeat; padding:2.5rem 2rem; min-height:300px; display:flex; align-items:center; }
     .page-hero h1 { font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:#fff;margin:0 0 .25rem; }
     .page-hero p  { color:rgba(255,255,255,.6);font-size:.84rem;margin:0 0 1.25rem; }
     .hero-nav a   { display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;font-size:.8rem;font-weight:600;text-decoration:none; }
@@ -372,7 +361,8 @@ $_dt_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
     /* Print watermark */
     .print-digital-watermark { display:none !important; }
     @media print {
-      header.topbar,.page-hero,.tabs,.toolbar,.btn,.modal-overlay { display:none !important; }
+      header.topbar,.page-hero,.tabs,.toolbar,.btn,.modal-overlay,
+      #settingsOverlay,#settingsDrawer { display:none !important; }
       body { background:#fff; }
       .table-card { border:none;box-shadow:none; }
       .print-digital-watermark { display:flex !important;position:fixed;left:0;top:0;bottom:0;width:16mm;align-items:center;justify-content:center;overflow:visible;pointer-events:none;z-index:9999; }
@@ -388,7 +378,7 @@ $_dt_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
     <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0">
       <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover" alt="">
     </div>
-    <div><div class="topbar-name">Barangay 410</div><div class="topbar-sub">Document Tracking</div></div>
+    <div><div class="topbar-name">Barangay 410</div></div>
   </a>
   <div class="topbar-right" style="margin-left:auto">
     <div title="<?= $rbadge['label'] ?>" style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;
@@ -396,11 +386,6 @@ $_dt_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
       <?php elseif($is_secretary): ?>background:rgba(59,130,246,.15);color:#93c5fd;border:1px solid rgba(59,130,246,.3);
       <?php else: ?>background:rgba(148,163,184,.15);color:#94a3b8;border:1px solid rgba(148,163,184,.3);<?php endif; ?>">
       <i class="fas <?= $rbadge['icon'] ?>" style="font-size:12px"></i></div>
-    <?php if ($is_captain): ?>
-    <button onclick="openSettings()" title="Settings" style="width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.6);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-      <i class="fas fa-gear" style="font-size:12px"></i>
-    </button>
-    <?php endif; ?>
     <button class="menu-toggle" id="menuToggle"><span></span><span></span><span></span></button>
   </div>
 </header>
@@ -416,6 +401,7 @@ $_dt_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
     </div>
     <button class="sidebar-close-btn" onclick="closeSidebar()"><i class="fas fa-times"></i></button>
   </div>
+  <div style="padding:14px 12px 6px"><button onclick="openSettings()" class="sidebar-settings-btn" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);color:#93c5fd;font-family:Inter,sans-serif;font-size:13px;font-weight:600;cursor:pointer"><i class="fas fa-gear"></i> Settings & More<i class="fas fa-arrow-right" style="margin-left:auto;font-size:10px;opacity:.6"></i></button></div>
 
   <!-- Quick stats -->
   <div style="padding:12px 10px 10px;border-bottom:1px solid rgba(255,255,255,.07)">
@@ -456,17 +442,10 @@ $_dt_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
 
 <!-- HERO -->
 <div class="page-hero">
-  <div style="max-width:1300px;margin:0 auto;display:flex;align-items:center;gap:1.5rem">
-  <div style="width:90px;height:90px;border-radius:50%;overflow:hidden;flex-shrink:0;border:2px solid rgba(255,255,255,.2)"><img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover"></div>
-  <div>
+  <div style="max-width:1200px;width:100%">
     <h1><i class="fas fa-database" style="margin-right:.5rem;opacity:.8"></i>Document Tracking</h1>
-    <p><?= $_dt_brgy ?> Document Management &mdash; <?= $_dt_city ?>, District <?= $_dt_dist ?></p>
-    <div class="hero-nav" style="display:flex;gap:.6rem;flex-wrap:wrap">
-      <a href="Home.php" class="ghost"><i class="fas fa-house"></i> Home</a>
-      <a href="Display_List.php" class="ghost"><i class="fas fa-users"></i> Residents</a>
-      <a href="data_tracking.php" class="active"><i class="fas fa-database"></i> Document Tracking</a>
-    </div>
-  </div></div>
+    <p>Certificate &amp; Document Request Management</p>
+  </div>
 </div>
 
 <main>
@@ -522,7 +501,6 @@ $_dt_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
         <button type="submit" class="btn btn-outline"><i class="fas fa-search"></i> Filter</button>
       </form>
       <div class="ml-auto" style="display:flex;gap:8px">
-        <button class="btn btn-outline" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
         <button class="btn btn-primary" onclick="openCertModal()"><i class="fas fa-plus"></i> New Request</button>
       </div>
     </div>
@@ -604,7 +582,6 @@ $_dt_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
         <button type="submit" class="btn btn-outline"><i class="fas fa-search"></i> Filter</button>
       </form>
       <div class="ml-auto" style="display:flex;gap:8px">
-        <button class="btn btn-outline" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
         <button class="btn btn-primary" onclick="openModal('addRequestModal')"><i class="fas fa-plus"></i> New Request</button>
       </div>
     </div>
@@ -668,7 +645,6 @@ $_dt_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
         <button type="submit" class="btn btn-outline"><i class="fas fa-search"></i> Filter</button>
       </form>
       <div class="ml-auto" style="display:flex;gap:8px">
-        <button class="btn btn-outline" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
         <button class="btn btn-primary" onclick="openModal('addAuditModal')"><i class="fas fa-plus"></i> Add Log Entry</button>
       </div>
     </div>
@@ -898,35 +874,22 @@ $_dt_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
     </div>
     <button onclick="closeSettings()" style="width:28px;height:28px;background:rgba(255,255,255,.08);border:none;border-radius:7px;color:rgba(255,255,255,.6);cursor:pointer;font-size:12px"><i class="fas fa-times"></i></button>
   </div>
-  <?php if ($is_captain): ?>
   <div style="flex:1;overflow-y:auto;padding:16px">
-    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Certificate Signatories</div>
-    <form method="POST" action="?tab=cert_requests">
-      <?= csrf_field() ?>
-      <input type="hidden" name="action" value="save_signatory">
-      <?php
-        $sec_raw  = get_setting($conn, 'cert_secretary', '{}');
-        $sec_data = json_decode($sec_raw, true) ?? [];
-        $sec_name_val = $sec_data['name'] ?? '';
-      ?>
-      <div style="font-size:11px;color:rgba(255,255,255,.35);margin-bottom:6px">Punong Barangay</div>
-      <div style="margin-bottom:10px">
-        <label style="font-size:11px;color:rgba(255,255,255,.5);display:block;margin-bottom:4px">Name</label>
-        <input type="text" name="sig_name" value="<?= htmlspecialchars($sig_name) ?>" class="form-control" placeholder="e.g. Juan dela Cruz" style="background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.12);color:#fff">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Document Settings</div>
+    <a href="signatory_settings.php" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;text-decoration:none">
+      <div style="width:30px;height:30px;background:rgba(139,92,246,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-pen-nib" style="color:#a78bfa;font-size:13px"></i></div>
+      <div style="text-align:left">
+        <div style="font-size:13px;font-weight:600;color:#fff">Signatory Settings</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.4)"><?= $sig_name ? htmlspecialchars($sig_name) : 'Not set' ?> · <?= $sec_name_val ? htmlspecialchars($sec_name_val) : 'Secretary not set' ?></div>
       </div>
-      <div style="margin-bottom:14px">
-        <label style="font-size:11px;color:rgba(255,255,255,.5);display:block;margin-bottom:4px">Title</label>
-        <input type="text" name="sig_title" value="<?= htmlspecialchars($sig_title) ?>" class="form-control" placeholder="Punong Barangay" style="background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.12);color:#fff">
-      </div>
-      <div style="font-size:11px;color:rgba(255,255,255,.35);margin-bottom:6px">Barangay Secretary</div>
-      <div style="margin-bottom:14px">
-        <label style="font-size:11px;color:rgba(255,255,255,.5);display:block;margin-bottom:4px">Name</label>
-        <input type="text" name="sec_name" value="<?= htmlspecialchars($sec_name_val) ?>" class="form-control" placeholder="e.g. Maria Santos" style="background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.12);color:#fff">
-      </div>
-      <button type="submit" class="btn btn-primary" style="width:100%"><i class="fas fa-save"></i> Save Signatories</button>
-    </form>
+    </a>
   </div>
-  <?php endif; ?>
+  <div style="padding:12px 16px;border-top:1px solid rgba(255,255,255,.07)">
+    <button onclick="printDT()" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer">
+      <div style="width:30px;height:30px;background:rgba(255,255,255,.08);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-print" style="color:#94a3b8;font-size:13px"></i></div>
+      <div style="text-align:left"><div style="font-size:13px;font-weight:600;color:#fff">Print Report</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Print the current document list</div></div>
+    </button>
+  </div>
   <div style="padding:14px 16px;border-top:1px solid rgba(255,255,255,.07)">
     <a href="logout.php" style="display:flex;align-items:center;gap:10px;background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.25);border-radius:10px;padding:12px 14px;text-decoration:none">
       <div style="width:30px;height:30px;background:rgba(244,63,94,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-right-from-bracket" style="color:#f43f5e;font-size:13px"></i></div>
@@ -1012,9 +975,14 @@ function openSidebar()  { document.getElementById('sidebar').classList.add('open
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); document.body.style.overflow=''; }
 function openSettings() { document.getElementById('settingsOverlay').style.display='block'; document.getElementById('settingsDrawer').style.right='0'; document.body.style.overflow='hidden'; closeSidebar(); }
 function closeSettings(){ document.getElementById('settingsOverlay').style.display='none';  document.getElementById('settingsDrawer').style.right='-360px'; document.body.style.overflow=''; }
+function printDT(){ closeSettings(); setTimeout(()=>window.print(), 350); }
 document.getElementById('menuToggle').addEventListener('click', openSidebar);
 document.addEventListener('keydown', e => { if(e.key==='Escape') closeSettings(); });
 </script>
 </body>
 </html>
+
+
+
+
 

@@ -1,5 +1,20 @@
 <?php
+session_start();
+if (!isset($_SESSION['admin'])) { header('Location: admin.php'); exit(); }
 include 'Residents_DB.php';
+include 'role_helper.php';
+
+// Must have unlocked the resident list (password gate) and IP must match
+$ip = $_SERVER['REMOTE_ADDR'];
+$list_unlocked = isset($_SESSION['list_unlocked'])
+    && isset($_SESSION['list_unlock_time'])
+    && (time() - $_SESSION['list_unlock_time']) < 1800
+    && ($_SESSION['list_unlock_ip'] ?? '') === $ip;
+
+if (!$list_unlocked) {
+    header('Location: Display_List.php');
+    exit();
+}
 
 $today = date('Y-m-d');
 header('Content-Type: text/csv; charset=utf-8');

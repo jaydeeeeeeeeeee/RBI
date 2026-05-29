@@ -210,7 +210,7 @@ main{padding:1.5rem;max-width:1200px;margin:0 auto}
     <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0">
       <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
     </div>
-    <div><div class="topbar-name">Barangay 410</div><div class="topbar-sub">Census Dashboard</div></div>
+    <div><div class="topbar-name">Barangay 410</div></div>
   </a>
   <div class="topbar-right">
     <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:4px 12px;border-radius:20px;border:1px solid;
@@ -316,7 +316,6 @@ main{padding:1.5rem;max-width:1200px;margin:0 auto}
     <div class="hero-title">Barangay <span style="color:#3b82f6">410</span> Census<br>Inhabitants Dashboard</div>
     <p class="hero-sub">Centralized system for resident data, household records, and community management · Manila City</p>
   </div>
-  <div class="hero-seal"><img src="images/brgy410_logo.png" style="width:90px;height:90px;object-fit:cover;border-radius:50%"></div>
 </section>
 
 <main>
@@ -784,6 +783,7 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
+
 
 
 

@@ -143,12 +143,12 @@ function v2($r,$k){return htmlspecialchars($r[$k]??'');}
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 <link rel="stylesheet" href="assets/css/main.css?v=<?=filemtime(__DIR__.'/assets/css/main.css')?>"/>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <style>
-.page-top{background:#0f172a;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
-.page-top-left h1{color:#fff;font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800}
-.page-top-left p{color:rgba(255,255,255,.45);font-size:12px;margin-top:3px}
 main{padding:1.5rem;max-width:1400px;margin:0 auto}
 
 /* ── PASSWORD GATE ── */
@@ -165,9 +165,10 @@ main{padding:1.5rem;max-width:1400px;margin:0 auto}
 .gate-hint{font-size:11px;color:#94a3b8;margin-top:14px}
 
 /* ── VIEW TOGGLE ── */
-.view-toggle{display:flex;background:#f1f5f9;border-radius:10px;padding:3px;gap:2px}
-.vt-btn{padding:7px 16px;border-radius:7px;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:#64748b;background:none;display:flex;align-items:center;gap:6px;transition:all .2s}
-.vt-btn.active{background:#fff;color:#0f172a;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.view-toggle{display:flex;background:#e2e8f0;border:1px solid #cbd5e1;border-radius:10px;padding:3px;gap:2px}
+.vt-btn{padding:7px 18px;border-radius:7px;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:#64748b;background:none;display:flex;align-items:center;gap:7px;transition:all .2s;white-space:nowrap}
+.vt-btn:hover:not(.active){color:#0f172a;background:rgba(255,255,255,.6)}
+.vt-btn.active{background:#0f172a;color:#fff !important;box-shadow:0 2px 6px rgba(0,0,0,.18)}
 .unlock-info{display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,.6);background:rgba(255,255,255,.08);padding:5px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.12)}
 .unlock-dot{width:6px;height:6px;border-radius:50%;background:#22c55e}
 
@@ -180,7 +181,7 @@ main{padding:1.5rem;max-width:1400px;margin:0 auto}
 .filter-sel{padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;color:#0f172a;outline:none}
 .filter-sel:focus{border-color:#3b82f6}
 .admin-tools-wrap{margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9;display:none}
-.stats-bar{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap}
+.stats-bar{display:flex;gap:8px;flex-wrap:wrap}
 .stat-pill{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:6px 14px;font-size:12px;display:flex;align-items:center;gap:7px}
 .stat-pill .n{font-weight:700;color:#0f172a}
 
@@ -237,6 +238,37 @@ main{padding:1.5rem;max-width:1400px;margin:0 auto}
 
 footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:center;padding:1.25rem 2rem;letter-spacing:.02em}
 
+@media print{
+  /* Hide all UI chrome */
+  .topbar,.sidebar,.sidebar-overlay,#settingsOverlay,#settingsDrawer,
+  .modal,.gate-wrap,.toolbar-card,.stats-bar,.view-toggle,
+  button,footer,
+  .card-actions,.admin-tools-wrap,#mapView{display:none!important}
+
+  /* Remove page margin/padding */
+  body{margin:0;padding:0;background:#fff!important;color:#000!important}
+  main{padding:.5rem!important;max-width:100%!important}
+
+  /* Print header */
+  #familyView::before{
+    content:"Barangay 410 — Registered Residents";
+    display:block;font-size:16px;font-weight:700;
+    border-bottom:2px solid #0f172a;padding-bottom:6px;margin-bottom:12px;
+  }
+
+  /* Keep family cards readable */
+  .family-block{border:1px solid #ccc!important;border-radius:4px!important;break-inside:avoid;margin-bottom:6px!important}
+  .family-head-row{background:#f3f4f6!important}
+  .f-name{font-size:13px!important}
+  .f-meta span,.m-meta span{font-size:11px!important}
+  .family-body{display:block!important}
+  .member-row{border-bottom:1px solid #eee!important}
+  .detail-panel{display:none!important}
+
+  /* Force all family blocks to expand */
+  .family-block{page-break-inside:avoid}
+}
+
 /* ── PASSWORD EYE TOGGLE ── */
 .pw-wrap{position:relative;display:flex;align-items:center}
 .pw-wrap input{padding-right:40px !important;flex:1}
@@ -254,7 +286,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
     <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0">
       <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
     </div>
-    <div><div class="topbar-name">Barangay 410</div><div class="topbar-sub">Residents</div></div>
+    <div><div class="topbar-name">Barangay 410</div></div>
   </a>
   <div class="topbar-right" style="margin-left:auto">
     <?php if($is_guest): ?>
@@ -265,7 +297,6 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
       <i class="fas fa-eye" style="font-size:12px;color:#94a3b8"></i>
     </div>
     <?php elseif($list_unlocked): ?>
-    <div class="unlock-info"><span class="unlock-dot"></span> Secretary Mode Active</div>
     <div title="<?=$rbadge['label']?>" style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;<?php if($is_captain): ?>background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#fbbf24;<?php elseif($is_secretary): ?>background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:#93c5fd;<?php else: ?>background:rgba(148,163,184,.15);border:1px solid rgba(148,163,184,.3);color:#94a3b8;<?php endif; ?>">
       <i class="fas <?=$rbadge['icon']?>" style="font-size:12px"></i>
     </div>
@@ -343,17 +374,6 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
         <span id="darkThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;transition:left .25s"></span>
       </button>
     </div>
-    <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:12px 14px;margin-bottom:16px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-        <div style="width:30px;height:30px;background:rgba(255,255,255,.08);border-radius:8px;display:flex;align-items:center;justify-content:center"><i class="fas fa-magnifying-glass" style="color:#94a3b8;font-size:13px"></i></div>
-        <div><div style="font-size:13px;font-weight:600;color:#fff">Page Zoom</div><div style="font-size:11px;color:rgba(255,255,255,.4)" id="zoomLabel">100%</div></div>
-        <button onclick="resetZoom()" style="margin-left:auto;font-size:11px;color:#64748b;background:none;border:none;cursor:pointer">Reset</button>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button onclick="pageZoom(0.9)" style="flex:1;padding:8px;background:rgba(255,255,255,.08);border:none;border-radius:8px;color:#fff;cursor:pointer;font-family:Inter,sans-serif;font-size:13px"><i class="fas fa-magnifying-glass-minus"></i> Out</button>
-        <button onclick="pageZoom(1.1)" style="flex:1;padding:8px;background:rgba(255,255,255,.08);border:none;border-radius:8px;color:#fff;cursor:pointer;font-family:Inter,sans-serif;font-size:13px"><i class="fas fa-magnifying-glass-plus"></i> In</button>
-      </div>
-    </div>
     <?php if(!$is_guest): ?>
     <!-- DATA SECTION -->
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Residents Data</div>
@@ -381,16 +401,22 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
         <div style="width:30px;height:30px;background:rgba(59,130,246,.15);border-radius:8px;display:flex;align-items:center;justify-content:center">
           <i class="fas fa-upload" style="color:#60a5fa;font-size:13px"></i>
         </div>
-        <div>
+        <div style="flex:1">
           <div style="font-size:13px;font-weight:600;color:#fff">Import CSV</div>
           <div style="font-size:11px;color:rgba(255,255,255,.4)">Upload resident data file</div>
         </div>
+        <a href="download_template.php" title="Download CSV template" style="color:#60a5fa;font-size:11px;text-decoration:none;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);padding:3px 8px;border-radius:6px;white-space:nowrap;flex-shrink:0">
+          <i class="fas fa-file-csv"></i> Template
+        </a>
       </div>
       <form id="settingsImportForm" action="Import_excel.php" method="POST" enctype="multipart/form-data">
         <?= csrf_field() ?>
-        <input type="file" name="csv_file" accept=".csv"
-          style="width:100%;font-size:12px;color:#94a3b8;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:7px;padding:6px 10px;margin-bottom:8px;box-sizing:border-box">
-        <button type="button" onclick="openSettingsImportModal()"
+        <label id="importFileLabel" style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.2);border-radius:7px;padding:8px 10px;margin-bottom:8px;cursor:pointer">
+          <i class="fas fa-file-csv" style="color:#60a5fa;font-size:14px;flex-shrink:0"></i>
+          <span id="importFileName" style="font-size:12px;color:rgba(255,255,255,.4);flex:1">No file chosen</span>
+          <input type="file" name="csv_file" accept=".csv" id="importFileInput" style="display:none" onchange="onImportFileChange(this)">
+        </label>
+        <button type="button" onclick="openSettingsImportModal()" id="importBtn"
           style="width:100%;padding:8px;background:rgba(59,130,246,.2);border:1px solid rgba(59,130,246,.35);border-radius:7px;color:#60a5fa;font-family:Inter,sans-serif;font-size:12px;font-weight:600;cursor:pointer">
           <i class="fas fa-upload"></i> Import
         </button>
@@ -404,11 +430,11 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
           <i class="fas fa-download" style="color:#4ade80;font-size:13px"></i>
         </div>
         <div>
-          <div style="font-size:13px;font-weight:600;color:#fff">Export Excel</div>
-          <div style="font-size:11px;color:rgba(255,255,255,.4)">Download residents list</div>
+          <div style="font-size:13px;font-weight:600;color:#fff">Export CSV</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.4)"><?=$total_all?> resident<?=$total_all!=1?'s':''?> will be exported</div>
         </div>
       </div>
-      <button onclick="openSettingsExportModal()"
+      <button onclick="openSettingsExportModal()" id="exportBtn"
         style="width:100%;padding:8px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);border-radius:7px;color:#4ade80;font-family:Inter,sans-serif;font-size:12px;font-weight:600;cursor:pointer">
         <i class="fas fa-download"></i> Export
       </button>
@@ -416,10 +442,15 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
     <?php endif; // !$is_guest data section ?>
 
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Actions</div>
-    <button onclick="window.print()" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:all .2s">
+    <button onclick="window.print()" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:all .2s" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background='rgba(255,255,255,.05)'">
       <div style="width:30px;height:30px;background:rgba(255,255,255,.08);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-print" style="color:#94a3b8;font-size:13px"></i></div>
-      <div style="text-align:left"><div style="font-size:13px;font-weight:600;color:#fff">Print Page</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Print current view</div></div>
+      <div style="text-align:left"><div style="font-size:13px;font-weight:600;color:#fff">Print List</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Print current residents view</div></div>
     </button>
+    <a href="signatory_settings.php" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;text-decoration:none">
+      <div style="width:30px;height:30px;background:rgba(139,92,246,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-pen-nib" style="color:#a78bfa;font-size:13px"></i></div>
+      <div style="text-align:left"><div style="font-size:13px;font-weight:600;color:#fff">Signatory Settings</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Edit names on printed documents</div></div>
+    </a>
+
   </div>
   <div style="padding:14px 16px;border-top:1px solid rgba(255,255,255,.07)">
     <a href="logout.php" style="display:flex;align-items:center;gap:10px;background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.25);border-radius:10px;padding:12px 14px;text-decoration:none">
@@ -429,26 +460,22 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
   </div>
 </div>
 
-<!-- PAGE HEADER -->
-<div class="page-top">
-  <div class="page-top-left">
-    <h1><i class="fas fa-users" style="margin-right:8px;opacity:.7"></i>Registered Residents</h1>
-    <p>Barangay 410 · Manila City · <?php if($is_guest):?>Guest mode — Kagaway viewer (limited)<?php elseif($list_unlocked):?>Secretary access active — data visible<?php else:?>Password required to view resident data<?php endif;?></p>
+<!-- HERO -->
+<div style="background:linear-gradient(to right,rgba(15,23,42,.85),rgba(15,23,42,.55)),url('images/Barangay_officials_410.png') center center/cover no-repeat;padding:2.5rem 2rem;min-height:300px;display:flex;align-items:center">
+  <div style="max-width:1200px;width:100%">
+    <h1 style="font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;color:#fff;margin:0 0 .35rem"><i class="fas fa-users" style="margin-right:.5rem;opacity:.8"></i>Residents List</h1>
+    <?php if($is_guest || !$list_unlocked):?>
+    <p style="color:rgba(255,255,255,.6);font-size:.84rem;margin:0">
+      <?php if($is_guest):?>
+        <i class="fas fa-eye" style="margin-right:5px;opacity:.7"></i>Guest mode — Kagaway viewer (limited access)
+      <?php else:?>
+        <i class="fas fa-lock" style="margin-right:5px;opacity:.7"></i>Password required to view resident data
+      <?php endif;?>
+    </p>
+    <?php endif;?>
   </div>
-  <?php if($list_unlocked || $is_guest):?>
-  <div class="view-toggle">
-    <button class="vt-btn <?=$view_mode!=='map'?'active':''?>" onclick="switchView('family')"><i class="fas fa-sitemap"></i> Family</button>
-    <button class="vt-btn <?=$view_mode==='map'?'active':''?>" onclick="switchView('map')"><i class="fas fa-map-marker-alt"></i> Map</button>
-  </div>
-  <?php endif;?>
 </div>
 
-<div style="background:linear-gradient(to right,rgba(15,23,42,.9),rgba(15,23,42,.65)),url('images/Barangay_officials_410.png') center 60%/cover no-repeat;padding:2rem 2rem">
-  <div style="max-width:1200px;margin:0 auto">
-    <h1 style="font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;color:#fff;margin:0 0 .25rem"><i class="fas fa-users" style="margin-right:.5rem;opacity:.8"></i>Residents List</h1>
-    <p style="color:rgba(255,255,255,.6);font-size:.84rem;margin:0">Barangay 410 Zone 42 · District IV, City of Manila</p>
-  </div>
-</div>
 
 <main>
 <?php if(!$list_unlocked && !$is_guest): ?>
@@ -500,16 +527,50 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
     </div>
   </div>
   <?php endif; ?>
-  <div class="stats-bar">
-    <div class="stat-pill"><span class="n"><?=$total?></span><span style="color:#64748b">shown</span></div>
-    <div class="stat-pill"><span class="n"><?=$total_all?></span><span style="color:#64748b">total residents</span></div>
-    <div class="stat-pill"><span class="n"><?=count($families)?></span><span style="color:#64748b">households</span></div>
-    <?php if($show_hidden):?><div class="stat-pill"><i class="fas fa-eye-slash" style="color:#94a3b8;font-size:11px"></i><span style="color:#64748b">Showing archived</span></div><?php endif;?>
+  <!-- ── STATS + VIEW TOGGLE ROW ── -->
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:1rem">
+    <div class="stats-bar" style="margin-bottom:0">
+      <div class="stat-pill"><span class="n"><?=$total?></span><span style="color:#64748b">shown</span></div>
+      <div class="stat-pill"><span class="n"><?=$total_all?></span><span style="color:#64748b">total residents</span></div>
+      <div class="stat-pill"><span class="n"><?=count($families)?></span><span style="color:#64748b">households</span></div>
+      <?php if($show_hidden):?><div class="stat-pill"><i class="fas fa-eye-slash" style="color:#94a3b8;font-size:11px"></i><span style="color:#64748b">Showing archived</span></div><?php endif;?>
+    </div>
+    <div class="view-toggle" style="display:inline-flex;flex-shrink:0">
+      <button class="vt-btn <?=$view_mode!=='map'?'active':''?>" onclick="switchView('family')"><i class="fas fa-users"></i> Family</button>
+      <button class="vt-btn <?=$view_mode==='map'?'active':''?>" onclick="switchView('map')"><i class="fas fa-map-marker-alt"></i> Map</button>
+    </div>
   </div>
 
   <!-- ── ALERTS ── -->
-  <?php if(isset($_GET['registered'])):?><div class="alert alert-success" style="margin-bottom:1rem"><i class="fas fa-check-circle"></i> Resident registered successfully!</div><?php endif;?>
-  <?php if(isset($_GET['import'])&&$_GET['import']==='success'):$_ic=(int)($_GET['count']??0);?><div class="alert alert-success" style="margin-bottom:1rem"><i class="fas fa-check-circle"></i> CSV imported successfully!<?=($_ic>0?" <strong>$_ic</strong> resident(s) added.":'')?>  <?=(isset($_GET['duplicates_removed'])?' Duplicate entries were automatically removed.':'')?></div><?php endif;?>
+  <?php if(isset($_GET['registered'])):?>
+  <div class="alert alert-success" style="margin-bottom:1rem"><i class="fas fa-check-circle"></i> Resident registered successfully!</div>
+  <?php endif;?>
+
+  <?php if(isset($_GET['import'])): $_ir=$_GET['import']; $_ic=(int)($_GET['count']??0); $_if=(int)($_GET['failed']??0); ?>
+    <?php if($_ir==='success'): ?>
+    <div class="alert alert-success" style="margin-bottom:1rem;display:flex;align-items:flex-start;gap:10px">
+      <i class="fas fa-check-circle" style="font-size:16px;flex-shrink:0;margin-top:1px"></i>
+      <div>
+        <strong>Import successful</strong> — <strong><?=$_ic?></strong> resident<?=($_ic!=1?'s':'')?> added.
+        <?php if($_if>0):?><br><span style="font-size:12px;color:#166534;opacity:.8"><?=$_if?> row<?=($_if!=1?'s':'')?> skipped (missing name or invalid data).</span><?php endif;?>
+        <?php if(isset($_GET['duplicates_removed'])):?><br><span style="font-size:12px;opacity:.8">Duplicate entries were automatically removed.</span><?php endif;?>
+      </div>
+    </div>
+    <?php elseif($_ir==='error'): $_reason=$_GET['reason']??''; ?>
+    <div class="alert" style="margin-bottom:1rem;background:#fff1f2;border:1px solid #fecdd3;color:#be123c;display:flex;align-items:flex-start;gap:10px;border-radius:10px;padding:12px 16px">
+      <i class="fas fa-circle-exclamation" style="font-size:16px;flex-shrink:0;margin-top:1px"></i>
+      <div>
+        <strong>Import failed</strong> —
+        <?php if($_reason==='wrongtype'): ?>The file must be a <strong>.csv</strong> file. Please export your spreadsheet as CSV first.
+        <?php elseif($_reason==='toobig'): ?>File is too large (max 5 MB). Try splitting the data into smaller batches.
+        <?php elseif($_reason==='nofile'): ?>No file was received. Please select a CSV file and try again.
+        <?php elseif($_reason==='allskipped'): ?>All <?=(int)($_GET['failed']??0)?> rows were skipped. Make sure your CSV has <strong>First Name</strong> and <strong>Last Name</strong> columns. <a href="download_template.php" style="color:#be123c;font-weight:700">Download the template</a> for the correct format.
+        <?php else: ?>Something went wrong. Please try again or <a href="download_template.php" style="color:#be123c;font-weight:700">download the template</a> to verify your file format.
+        <?php endif;?>
+      </div>
+    </div>
+    <?php endif;?>
+  <?php endif;?>
 
   <!-- ── TOOLBAR ── -->
   <div class="toolbar-card">
@@ -783,13 +844,17 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
 <!-- Export Modal -->
 <div class="modal" id="exportModal">
   <div class="modal-inner">
-    <h3><i class="fas fa-download" style="color:#3b82f6;margin-right:8px"></i>Export Residents</h3>
-    <p style="font-size:13px;color:#64748b;margin-bottom:.5rem">Enter admin password to export.</p>
-    <input type="password" class="modal-pw" id="exportPw" placeholder="Admin password">
-    <div class="modal-err" id="exportErr">Incorrect password.</div>
-    <div style="display:flex;gap:10px">
+    <h3><i class="fas fa-download" style="color:#22c55e;margin-right:8px"></i>Export Residents</h3>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#166534">
+      <i class="fas fa-circle-info" style="margin-right:6px"></i>
+      This will download a CSV file with <strong><?=$total_all?></strong> resident<?=($total_all!=1?'s':'')?> — all active records.
+    </div>
+    <p style="font-size:13px;color:#64748b;margin-bottom:.5rem">Enter your admin password to confirm.</p>
+    <div class="pw-wrap"><input type="password" class="modal-pw" id="exportPw" placeholder="Admin password"><button type="button" class="pw-eye" onclick="togglePw('exportPw',this)"><i class="fas fa-eye"></i></button></div>
+    <div class="modal-err" id="exportErr"></div>
+    <div style="display:flex;gap:10px;margin-top:12px">
       <button class="btn btn-outline" style="flex:1" onclick="closeModal('exportModal')">Cancel</button>
-      <button class="btn btn-primary" style="flex:1" onclick="doExport()"><i class="fas fa-download"></i> Export</button>
+      <button class="btn btn-primary" style="flex:1" id="exportConfirmBtn" onclick="doExport()"><i class="fas fa-download"></i> Download CSV</button>
     </div>
   </div>
 </div>
@@ -797,12 +862,20 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
 <div class="modal" id="importModal">
   <div class="modal-inner">
     <h3><i class="fas fa-upload" style="color:#3b82f6;margin-right:8px"></i>Import CSV</h3>
-    <p style="font-size:13px;color:#64748b;margin-bottom:.5rem">Enter admin password to import.</p>
-    <input type="password" class="modal-pw" id="importPw" placeholder="Admin password">
-    <div class="modal-err" id="importErr">Incorrect password.</div>
-    <div style="display:flex;gap:10px">
+    <div id="importFileInfo" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#1e40af">
+      <i class="fas fa-file-csv" style="margin-right:6px"></i>
+      <span id="importFileInfoText">No file selected</span>
+    </div>
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#92400e">
+      <i class="fas fa-triangle-exclamation" style="margin-right:6px"></i>
+      <strong>Note:</strong> Existing residents will not be overwritten. Only new rows are added. Rows missing First Name or Last Name will be skipped.
+    </div>
+    <p style="font-size:13px;color:#64748b;margin-bottom:.5rem">Enter your admin password to confirm.</p>
+    <div class="pw-wrap"><input type="password" class="modal-pw" id="importPw" placeholder="Admin password"><button type="button" class="pw-eye" onclick="togglePw('importPw',this)"><i class="fas fa-eye"></i></button></div>
+    <div class="modal-err" id="importErr"></div>
+    <div style="display:flex;gap:10px;margin-top:12px">
       <button class="btn btn-outline" style="flex:1" onclick="closeModal('importModal')">Cancel</button>
-      <button class="btn btn-primary" style="flex:1" onclick="doImport()"><i class="fas fa-upload"></i> Import</button>
+      <button class="btn btn-primary" style="flex:1" id="importConfirmBtn" onclick="doImport()"><i class="fas fa-upload"></i> Confirm Import</button>
     </div>
   </div>
 </div>
@@ -914,32 +987,47 @@ function switchView(v){
 }
 
 // ── LEAFLET MAP WITH GEOCODING ──────────────────────────────────────────────
-const BRGY_LAT=14.5947, BRGY_LNG=120.9834;
-let mapInstance=null, markerLayer={};
+const BRGY_LAT=<?= defined('BRGY_LAT') ? BRGY_LAT : 14.6012182 ?>, BRGY_LNG=<?= defined('BRGY_LNG') ? BRGY_LNG : 120.9960098 ?>;
+let mapInstance=null, markerLayer={}, clusterGroup=null;
 let satelliteMode=false;
 
 function initMap(){
-  mapInstance=L.map('residentMap').setView([BRGY_LAT,BRGY_LNG],17);
+  try {
+  mapInstance=L.map('residentMap',{preferCanvas:true,maxZoom:19,minZoom:12}).setView([BRGY_LAT,BRGY_LNG],17);
 
-  // ESRI World Street Map — same data used by Philippine government agencies
-  const esriStreet = L.tileLayer(
-    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-    {attribution:'Tiles &copy; <a href="https://www.esri.com">Esri</a> — Source: Esri, HERE, DeLorme, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China, Esri (Thailand), MapmyIndia, and the GIS User Community',maxZoom:20}
+  if(typeof L.markerClusterGroup === 'function'){
+    clusterGroup=L.markerClusterGroup({
+      maxClusterRadius:40,
+      showCoverageOnHover:false,
+      iconCreateFunction:function(cluster){
+        const c=cluster.getChildCount();
+        return L.divIcon({className:'',html:`<div style="background:#0f172a;color:#fff;font-size:11px;font-weight:700;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)">${c}</div>`,iconSize:[36,36],iconAnchor:[18,18]});
+      }
+    });
+  } else {
+    clusterGroup=L.layerGroup();
+  }
+  mapInstance.addLayer(clusterGroup);
+
+  // OpenStreetMap — reliable, no API key required
+  const osmStreet = L.tileLayer(
+    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',maxZoom:19,subdomains:['a','b','c']}
   );
 
-  // ESRI World Imagery — actual satellite/aerial photography
+  // ESRI World Imagery — satellite/aerial photography
   const esriSat = L.tileLayer(
     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    {attribution:'Tiles &copy; <a href="https://www.esri.com">Esri</a> — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',maxZoom:20}
+    {attribution:'Tiles &copy; Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',maxZoom:19}
   );
 
-  // Street labels overlay on top of satellite
+  // OSM labels overlay on satellite
   const esriLabels = L.tileLayer(
     'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-    {attribution:'',maxZoom:20,opacity:.85}
+    {attribution:'',maxZoom:19,opacity:.85}
   );
 
-  esriStreet.addTo(mapInstance);
+  osmStreet.addTo(mapInstance);
 
   // Satellite toggle button
   const satBtn=L.control({position:'topright'});
@@ -954,7 +1042,7 @@ function initMap(){
     if(e.target.closest('#satToggle')){
       satelliteMode=!satelliteMode;
       if(satelliteMode){
-        mapInstance.removeLayer(esriStreet);
+        mapInstance.removeLayer(osmStreet);
         esriSat.addTo(mapInstance);
         esriLabels.addTo(mapInstance);
         document.getElementById('satToggle').style.background='#0f172a';
@@ -962,7 +1050,7 @@ function initMap(){
       } else {
         mapInstance.removeLayer(esriSat);
         mapInstance.removeLayer(esriLabels);
-        esriStreet.addTo(mapInstance);
+        osmStreet.addTo(mapInstance);
         document.getElementById('satToggle').style.background='#fff';
         document.getElementById('satToggle').style.color='#374151';
       }
@@ -992,7 +1080,12 @@ function initMap(){
   });
 
   updateGeocodeStats();
-  setTimeout(()=>mapInstance.invalidateSize(),150);
+  setTimeout(()=>mapInstance.invalidateSize(),300);
+  } catch(err){
+    console.error('Map init error:',err);
+    const el=document.getElementById('geocodeStats');
+    if(el) el.innerHTML='<span style="color:#be123c"><b>Map failed to load.</b> Check browser console.</span>';
+  }
 }
 
 function addMarker(res){
@@ -1023,7 +1116,8 @@ function addMarker(res){
     ${detailHtml}
   </div>`;
 
-  const marker=L.marker([lat,lng],{icon}).addTo(mapInstance).bindPopup(popup);
+  const marker=L.marker([lat,lng],{icon}).bindPopup(popup);
+  clusterGroup.addLayer(marker);
   markerLayer[res.id]={marker,res};
 }
 
@@ -1042,7 +1136,7 @@ function updateGeocodeStats(){
 function updateMarker(id,lat,lng){
   if(!markerLayer[id]) return;
   const {marker,res}=markerLayer[id];
-  mapInstance.removeLayer(marker);
+  clusterGroup.removeLayer(marker);
   res.lat=lat; res.lng=lng;
   delete markerLayer[id];
   addMarker(res);
@@ -1098,22 +1192,76 @@ function openModal(id){document.getElementById(id).classList.add('show');documen
 function closeModal(id){document.getElementById(id).classList.remove('show');document.body.style.overflow='';}
 document.querySelectorAll('.modal').forEach(m=>m.addEventListener('click',function(e){if(e.target===this)this.classList.remove('show');}));
 function openDelModal(id){document.getElementById('delId').value=id;document.getElementById('deletePw').value='';document.getElementById('deleteErr').style.display='none';openModal('deleteModal');}
-function openExportModal(){document.getElementById('exportPw').value='';document.getElementById('exportErr').style.display='none';openModal('exportModal');}
+function openExportModal(){
+  document.getElementById('exportPw').value='';
+  document.getElementById('exportErr').style.display='none';
+  document.getElementById('exportConfirmBtn').disabled=false;
+  document.getElementById('exportConfirmBtn').innerHTML='<i class="fas fa-download"></i> Download CSV';
+  openModal('exportModal');
+}
 function openImportModal(){
-  const f=document.querySelector('#importForm input[name="csv_file"]');
+  const f=document.getElementById('importFileInput');
   if(!f||!f.files||!f.files.length){alert('Please select a CSV file first.');return;}
-  document.getElementById('importPw').value='';document.getElementById('importErr').style.display='none';openModal('importModal');
+  const fname=f.files[0].name;
+  if(!fname.toLowerCase().endsWith('.csv')){alert('Only .csv files are accepted. Please export your spreadsheet as CSV first.');return;}
+  document.getElementById('importFileInfoText').textContent=fname+' ('+formatBytes(f.files[0].size)+')';
+  document.getElementById('importPw').value='';
+  document.getElementById('importErr').style.display='none';
+  document.getElementById('importConfirmBtn').disabled=false;
+  document.getElementById('importConfirmBtn').innerHTML='<i class="fas fa-upload"></i> Confirm Import';
+  openModal('importModal');
 }
 
-function verifyAndDo(pw, onSuccess, errId){
+function verifyAndDo(pw, onSuccess, errId, onFail){
   const fd=new FormData();fd.append('password',pw);
   fetch('verify_secretary.php',{method:'POST',body:fd}).then(r=>r.json()).then(res=>{
     if(res.ok){onSuccess();}
-    else{document.getElementById(errId).textContent=res.message;document.getElementById(errId).style.display='block';}
+    else{
+      const el=document.getElementById(errId);
+      el.textContent=res.message; el.style.display='block';
+      if(onFail) onFail();
+    }
+  }).catch(()=>{
+    const el=document.getElementById(errId);
+    el.textContent='Network error. Please try again.'; el.style.display='block';
+    if(onFail) onFail();
   });
 }
-function doExport(){verifyAndDo(document.getElementById('exportPw').value,()=>{window.location.href='Export_excel.php';},'exportErr');}
-function doImport(){verifyAndDo(document.getElementById('importPw').value,()=>{document.getElementById('importForm').submit();},'importErr');}
+function formatBytes(b){if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(1)+'KB';return(b/1048576).toFixed(1)+'MB';}
+function onImportFileChange(input){
+  const label=document.getElementById('importFileName');
+  if(input.files&&input.files.length){
+    const f=input.files[0];
+    label.textContent=f.name+' ('+formatBytes(f.size)+')';
+    label.style.color='rgba(255,255,255,.85)';
+  } else {
+    label.textContent='No file chosen';
+    label.style.color='rgba(255,255,255,.4)';
+  }
+}
+function doExport(){
+  const btn=document.getElementById('exportConfirmBtn');
+  btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Preparing…';
+  verifyAndDo(document.getElementById('exportPw').value,()=>{
+    btn.innerHTML='<i class="fas fa-check"></i> Downloading…';
+    setTimeout(()=>{
+      window.location.href='Export_excel.php';
+      setTimeout(()=>closeModal('exportModal'),1500);
+    },300);
+  },'exportErr',()=>{
+    btn.disabled=false; btn.innerHTML='<i class="fas fa-download"></i> Download CSV';
+  });
+}
+function doImport(){
+  const btn=document.getElementById('importConfirmBtn');
+  btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Importing…';
+  verifyAndDo(document.getElementById('importPw').value,()=>{
+    btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Uploading file…';
+    document.getElementById('settingsImportForm').submit();
+  },'importErr',()=>{
+    btn.disabled=false; btn.innerHTML='<i class="fas fa-upload"></i> Confirm Import';
+  });
+}
 function doDelete(){verifyAndDo(document.getElementById('deletePw').value,()=>{window.location.href='delete_permanent.php?id='+document.getElementById('delId').value;},'deleteErr');}
 
 // Print
@@ -1131,11 +1279,7 @@ function printRes(id){
 </script>
 <script>
 function openSettingsExportModal(){ closeSettings(); setTimeout(()=>openExportModal(), 300); }
-function openSettingsImportModal(){
-  const f=document.querySelector('#settingsImportForm input[name="csv_file"]');
-  if(!f||!f.files||!f.files.length){ alert('Please select a CSV file first.'); return; }
-  closeSettings(); setTimeout(()=>openImportModal(), 300);
-}
+function openSettingsImportModal(){ closeSettings(); setTimeout(()=>openImportModal(), 300); }
 function openSettings(){document.getElementById('settingsOverlay').style.display='block';document.getElementById('settingsDrawer').style.right='0';document.body.style.overflow='hidden';if(typeof closeSidebar==='function')closeSidebar();}
 function closeSettings(){document.getElementById('settingsOverlay').style.display='none';document.getElementById('settingsDrawer').style.right='-360px';document.body.style.overflow='';}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSettings();});
@@ -1143,14 +1287,12 @@ let darkMode=localStorage.getItem('rbi_dark')==='1';
 function applyDark(on){document.body.classList.toggle('dark-mode',on);const th=document.getElementById('darkThumb'),tg=document.getElementById('darkToggle');if(th)th.style.left=on?'21px':'3px';if(tg)tg.style.background=on?'#3b82f6':'#475569';document.documentElement.style.setProperty('--bg',on?'#0f172a':'#f8fafc');document.documentElement.style.setProperty('--card',on?'#1e293b':'#ffffff');document.documentElement.style.setProperty('--border',on?'#334155':'#e2e8f0');document.documentElement.style.setProperty('--text',on?'#e2e8f0':'#0f172a');}
 applyDark(darkMode);
 function toggleDarkMode(){darkMode=!darkMode;localStorage.setItem('rbi_dark',darkMode?'1':'0');applyDark(darkMode);}
-let zoomLvl=parseFloat(localStorage.getItem('rbi_zoom')||'1');
-function applyZoom(){document.body.style.zoom=zoomLvl;const l=document.getElementById('zoomLabel');if(l)l.textContent=Math.round(zoomLvl*100)+'%';}
-applyZoom();
-function pageZoom(f){zoomLvl=parseFloat(Math.min(Math.max(zoomLvl*f,0.6),1.5).toFixed(2));localStorage.setItem('rbi_zoom',zoomLvl);applyZoom();}
-function resetZoom(){zoomLvl=1;localStorage.setItem('rbi_zoom','1');applyZoom();}
 </script>
 </body>
 </html>
+
+
+
 
 
 

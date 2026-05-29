@@ -235,10 +235,9 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif}
   position:relative;z-index:2;
   flex:0 0 50%;display:flex;flex-direction:column;
   justify-content:center;padding:2.5rem 3.5rem;
-  overflow:hidden;
 }
 .left-panel::before{
-  content:'';position:absolute;inset:0;z-index:0;
+  content:'';position:absolute;top:0;bottom:0;left:0;right:-40px;z-index:0;
   background:url('images/Brgy410_officials2.png') center center/cover no-repeat;
   opacity:.08;
   pointer-events:none;

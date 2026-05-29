@@ -1,6 +1,9 @@
 <?php
 require_once __DIR__.'/auth.php';
 requireRole(['chairperson','secretary']);
+require_once __DIR__.'/../signatory_helper.php';
+$_eb_sigs     = getSignatories($conn);
+$_eb_sec_name = strtoupper(trim($_eb_sigs['secretary']['full_name'] ?? '')) ?: 'BARANGAY SECRETARY';
 
 // ── PDF Export Password Gate 
 if (empty($_POST['export_pw'])) {
@@ -68,6 +71,34 @@ require_once __DIR__ . '/barcode.php';
 class MedMinutesPDF extends FPDF {
     public string $exportedBy='', $exportedAt='';
 
+    public $wmLogo = null;
+    public $extgstates = [];
+
+    function SetAlpha($alpha) {
+        foreach ($this->extgstates as $i => $v) {
+            if (abs($v['ca']-$alpha)<0.001) { $this->_out('/GS'.$i.' gs'); return; }
+        }
+        $i = count($this->extgstates)+1;
+        $this->extgstates[$i] = ['ca'=>$alpha,'n'=>0];
+        $this->_out('/GS'.$i.' gs');
+    }
+    function _putresourcedict() {
+        parent::_putresourcedict();
+        if (!empty($this->extgstates)) {
+            $this->_put('/ExtGState <<');
+            foreach ($this->extgstates as $k=>$v) $this->_put('/GS'.$k.' '.$v['n'].' 0 R');
+            $this->_put('>>');
+        }
+    }
+    function _putresources() {
+        foreach ($this->extgstates as $k=>&$v) {
+            $this->_newobj(); $v['n']=$this->n;
+            $this->_put('<</Type /ExtGState /ca '.$v['ca'].' /CA '.$v['ca'].' /BM /Normal>>');
+            $this->_put('endobj');
+        }
+        parent::_putresources();
+    }
+
     function RotatedText($x, $y, $txt, $angle) {
         $this->_out('q');
         $rad = deg2rad($angle);
@@ -82,32 +113,45 @@ class MedMinutesPDF extends FPDF {
     }
 
     function Header(){
-        $logos = [
-            __DIR__ . '/images/brgy410_logo.png',
-            __DIR__ . '/images/brgy410_logo.png',
-        ];
-        foreach ($logos as $logo) {
-            if (file_exists($logo)) {
-                $size = 90;
-                $x = ($this->GetPageWidth()  - $size) / 2;
-                $y = ($this->GetPageHeight() - $size) / 2;
-                $this->Image($logo, $x, $y, $size);
-                break;
-            }
+        $W=$this->GetPageWidth(); $H=$this->GetPageHeight();
+        // Watermark
+        $wm=dirname(__DIR__).'/images/Brgy410_seal.png';
+        if(file_exists($wm)){
+            $sz=90;
+            $this->_out('q'); $this->SetAlpha(0.07);
+            $this->Image($wm,($W-$sz)/2,($H-$sz)/2-10,$sz);
+            $this->_out('Q'); $this->SetAlpha(1);
         }
-
-        $this->SetFont('Times','',9); $this->SetTextColor(0,0,0);
-        $this->SetXY(20,10); $this->Cell(170,4,'Republic of the Philippines',0,1,'C');
-        $this->SetX(20);     $this->Cell(170,4,'City of Manila',0,1,'C');
+        // 4 logos
+        $hy=10; $ls=18; $ib=dirname(__DIR__).'/images/';
+        if(file_exists($ib.'logo_bagong_pilipinas.png'))  $this->Image($ib.'logo_bagong_pilipinas.png',  12,             $hy,$ls);
+        if(file_exists($ib.'Brgy410_seal.png'))           $this->Image($ib.'Brgy410_seal.png',           12+$ls+2,      $hy,$ls);
+        if(file_exists($ib.'lungsod_ng_manila_logo.png')) $this->Image($ib.'lungsod_ng_manila_logo.png', $W-12-$ls*2-2, $hy,$ls);
+        if(file_exists($ib.'barangay-logo.png'))          $this->Image($ib.'barangay-logo.png',          $W-12-$ls,     $hy,$ls);
+        // Center text
+        $cx=12+$ls*2+4; $cw=$W-24-$ls*4-8;
+        $this->SetTextColor(0,0,0);
         $this->SetFont('Times','B',9);
-        $this->SetX(20);     $this->Cell(170,4,defined('BRGY_FULLNAME') ? BRGY_FULLNAME : 'Barangay 410 Zone 42',0,1,'C');
-        $this->SetFont('Times','',9);
-        $this->SetX(20);     $this->Cell(170,4,'District '.(defined('BRGY_DISTRICT') ? BRGY_DISTRICT : 'IV'),0,1,'C');
-        $this->Ln(1);
-        $this->SetFont('Times','B',11);
-        $this->SetX(20); $this->Cell(170,5,'OFFICE OF THE LUPONG TAGAPAMAYAPA',0,1,'C');
-        $this->Ln(2); $this->SetLineWidth(0.5);
-        $this->Line(20,$this->GetY(),190,$this->GetY()); $this->Ln(4);
+        $this->SetXY($cx,$hy+1); $this->Cell($cw,4,'Republic of the Philippines',0,1,'C');
+        $this->SetX($cx);        $this->Cell($cw,4,'National Capital Region',0,1,'C');
+        $this->SetFont('Times','B',10);
+        $this->SetX($cx);        $this->Cell($cw,4,'City of Manila',0,1,'C');
+        $this->SetFont('Times','B',8);
+        $this->SetX($cx);        $this->Cell($cw,4,'TANGGAPAN NG PUNONG BARANGAY',0,1,'C');
+        $this->SetFont('Times','',7.5);
+        $this->SetX($cx);        $this->Cell($cw,3.5,'Barangay 410, Zone 42, District IV, Manila',0,1,'C');
+        $this->SetX($cx);        $this->Cell($cw,3.5,'230 M. F. Jhocson St. Sampaloc, Manila',0,1,'C');
+        $this->SetX($cx);        $this->Cell($cw,3.5,'E-mail Address: barangay410zone42@gmail.com',0,1,'C');
+        // Separator
+        $sep_y=max($this->GetY(),$hy+$ls)+2;
+        $this->SetDrawColor(0,0,0); $this->SetLineWidth(0.5);
+        $this->Line(12,$sep_y,$W-12,$sep_y);
+        $this->SetLineWidth(0.2); $this->Line(12,$sep_y+1.5,$W-12,$sep_y+1.5);
+        // Office + document title
+        $this->SetFont('Times','B',11); $this->SetTextColor(0,0,0);
+        $this->SetXY(20,$sep_y+4);
+        $this->Cell(170,5,'OFFICE OF THE LUPONG TAGAPAMAYAPA',0,1,'C');
+        $this->SetLineWidth(0.5); $this->Line(20,$this->GetY(),$W-20,$this->GetY()); $this->Ln(4);
         $this->SetFont('Times','B',13);
         $this->SetX(20); $this->Cell(170,6,'MEDIATION MINUTES',0,1,'C'); $this->Ln(2);
     }
@@ -134,7 +178,7 @@ $ml=20; $pw=170; $lineH=7; $sigBlockTop = 297 - 70;
 $pdf=new MedMinutesPDF('P','mm','A4');
 $pdf->SetAutoPageBreak(false);
 $pdf->SetTitle('Mediation Minutes - '.$case_id);
-$pdf->SetMargins($ml,10,210-$ml-$pw);
+$pdf->SetMargins($ml,65,210-$ml-$pw);
 $pdf->AddPage();
 
 
@@ -209,7 +253,7 @@ $sigY3=$sigY2+13;
 $pdf->Line($col1x,$sigY3,$col1x+$colW,$sigY3); $pdf->Line($col2x,$sigY3,$col2x+$colW,$sigY3);
 $pdf->SetFont('Times','BU',9);
 $pdf->SetXY($col1x,$sigY3+1); $pdf->Cell($colW,5,strtoupper(getSignerName($conn)),0,0,'C');
-$pdf->SetX($col2x);            $pdf->Cell($colW,5,'MA. VERONICA M. PAJARES',0,1,'C');
+$pdf->SetX($col2x);            $pdf->Cell($colW,5,$_eb_sec_name,0,1,'C');
 $pdf->SetFont('Times','',8);
 $pdf->SetXY($col1x,$sigY3+6); $pdf->Cell($colW,4,'Lupon Chairman/Punong Barangay',0,0,'C');
 $pdf->SetX($col2x);            $pdf->Cell($colW,4,'Lupon Secretary/Barangay Secretary',0,1,'C');

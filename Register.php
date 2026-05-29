@@ -17,75 +17,120 @@ if (isset($_POST['_bulk_submit']) && !empty($_POST['bulk_rows'])) {
     $bulk_added = 0;
     $bulk_errors = 0;
 
-    if (is_array($bulk_rows)) {
-        foreach ($bulk_rows as $row) {
-            $fn  = mysqli_real_escape_string($conn, trim($row['first_name']   ?? ''));
-            $mn  = mysqli_real_escape_string($conn, trim($row['middle_name']  ?? ''));
-            $ln  = mysqli_real_escape_string($conn, trim($row['last_name']    ?? ''));
-            $sx  = mysqli_real_escape_string($conn, trim($row['suffix']       ?? ''));
-            $bd  = mysqli_real_escape_string($conn, trim($row['birthdate']    ?? ''));
-            $gen = mysqli_real_escape_string($conn, trim($row['gender']       ?? ''));
-            $ms  = mysqli_real_escape_string($conn, trim($row['marital_status'] ?? 'Single'));
-            $cit = mysqli_real_escape_string($conn, trim($row['citizenship']  ?? 'Filipino'));
-            $rel = mysqli_real_escape_string($conn, trim($row['religion']     ?? ''));
-            $padr= mysqli_real_escape_string($conn, trim($row['perm_address'] ?? ''));
-            $mob = mysqli_real_escape_string($conn, trim($row['mobile']       ?? ''));
-            $emp = mysqli_real_escape_string($conn, trim($row['employment_status'] ?? ''));
-            $hof = mysqli_real_escape_string($conn, trim($row['head_of_family'] ?? 'Yes'));
-            $vtr = mysqli_real_escape_string($conn, trim($row['voter']        ?? 'No'));
-            $issr= mysqli_real_escape_string($conn, trim($row['is_senior']    ?? 'No'));
-            $pwd = mysqli_real_escape_string($conn, trim($row['pwd_status']   ?? 'No'));
-            $solo= mysqli_real_escape_string($conn, trim($row['solo_parent_status'] ?? 'No'));
+    // Helper: insert one resident row, returns ['ok', 'code'/'msg', 'rid']
+    $insertResident = function(array $row, string $family_code) use ($conn): array {
+        $fn  = mysqli_real_escape_string($conn, trim($row['first_name']   ?? ''));
+        $mn  = mysqli_real_escape_string($conn, trim($row['middle_name']  ?? ''));
+        $ln  = mysqli_real_escape_string($conn, trim($row['last_name']    ?? ''));
+        $sx  = mysqli_real_escape_string($conn, trim($row['suffix']       ?? ''));
+        $bd  = mysqli_real_escape_string($conn, trim($row['birthdate']    ?? ''));
+        $gen = mysqli_real_escape_string($conn, trim($row['gender']       ?? ''));
+        $ms  = mysqli_real_escape_string($conn, trim($row['marital_status'] ?? 'Single'));
+        $cit = mysqli_real_escape_string($conn, trim($row['citizenship']  ?? 'Filipino'));
+        $rel = mysqli_real_escape_string($conn, trim($row['religion']     ?? ''));
+        $padr= mysqli_real_escape_string($conn, trim($row['perm_address'] ?? ''));
+        $mob = mysqli_real_escape_string($conn, trim($row['mobile']       ?? ''));
+        $emp = mysqli_real_escape_string($conn, trim($row['employment_status'] ?? ''));
+        $hof = mysqli_real_escape_string($conn, trim($row['head_of_family'] ?? 'Yes'));
+        $vtr = mysqli_real_escape_string($conn, trim($row['voter']        ?? 'No'));
+        $issr= mysqli_real_escape_string($conn, trim($row['is_senior']    ?? 'No'));
+        $pwd = mysqli_real_escape_string($conn, trim($row['pwd_status']   ?? 'No'));
+        $solo= mysqli_real_escape_string($conn, trim($row['solo_parent_status'] ?? 'No'));
+        $fc  = mysqli_real_escape_string($conn, $family_code);
 
-            if (empty($fn) || empty($ln)) {
-                $bulk_results[] = ['ok'=>false,'name'=>"$fn $ln",'msg'=>'Missing first or last name'];
-                $bulk_errors++;
-                continue;
-            }
-            // Duplicate check
-            $dup = mysqli_fetch_assoc(mysqli_query($conn,
-                "SELECT id FROM residents WHERE first_name='$fn' AND last_name='$ln' AND birthdate='$bd' LIMIT 1"));
-            if ($dup) {
-                $bulk_results[] = ['ok'=>false,'name'=>"$fn $ln",'msg'=>'Already exists (duplicate skipped)'];
-                $bulk_errors++;
-                continue;
-            }
-            $code = generateResidentCode($conn);
-            $sql  = "INSERT INTO residents (first_name,middle_name,last_name,suffix,head_of_family,
-                perm_address,mobile,birthdate,gender,marital_status,religion,citizenship,
-                employment_status,voter,is_senior,pwd_status,solo_parent_status,resident_code)
-                VALUES ('$fn','$mn','$ln','$sx','$hof',
-                '$padr','$mob','$bd','$gen','$ms','$rel','$cit',
-                '$emp','$vtr','$issr','$pwd','$solo','$code')";
-            if (mysqli_query($conn, $sql)) {
-                $rid = mysqli_insert_id($conn);
-                $adm = mysqli_real_escape_string($conn, $_SESSION['admin'] ?? 'admin');
-                $ip  = $_SERVER['REMOTE_ADDR'];
-                mysqli_query($conn, "INSERT INTO audit_log (action,record_id,resident_name,performed_by,ip_address,notes)
-                    VALUES ('CREATE',$rid,'$fn $ln','$adm','$ip','Bulk registration')");
-                // Auto-sync to senior_citizens if aged 60+ or marked as senior
-                if ($bd) {
-                    $sc_bdate = new DateTime($bd);
-                    $sc_age   = (new DateTime())->diff($sc_bdate)->y;
-                    if ($sc_age >= 60 || $issr === 'Yes') {
-                        $sc_bm = (int)$sc_bdate->format('n');
-                        $sc_bd = (int)$sc_bdate->format('j');
-                        $sc_by = (int)$sc_bdate->format('Y');
-                        $sc_who = mysqli_real_escape_string($conn, $_SESSION['full_name'] ?? $_SESSION['admin']);
-                        $exists = $conn->query("SELECT id FROM senior_citizens WHERE last_name='$ln' AND first_name='$fn' AND birth_month=$sc_bm AND birth_day=$sc_bd AND birth_year=$sc_by LIMIT 1");
-                        if ($exists && $exists->num_rows === 0) {
-                            $conn->query("INSERT INTO senior_citizens (last_name,first_name,middle_name,gender,birth_month,birth_day,birth_year,address,contact_number,status,added_by)
-                                VALUES ('$ln','$fn','$mn','$gen',$sc_bm,$sc_bd,$sc_by,'$padr','$mob','Active','$sc_who')");
-                        }
-                    }
+        if (empty($fn) || empty($ln)) return ['ok'=>false,'name'=>"$fn $ln",'msg'=>'Missing first or last name'];
+
+        $dup = mysqli_fetch_assoc(mysqli_query($conn,
+            "SELECT id FROM residents WHERE first_name='$fn' AND last_name='$ln' AND birthdate='$bd' LIMIT 1"));
+        if ($dup) return ['ok'=>false,'name'=>"$fn $ln",'msg'=>'Already exists (duplicate skipped)'];
+
+        $code = generateResidentCode($conn);
+        $sql  = "INSERT INTO residents (first_name,middle_name,last_name,suffix,head_of_family,
+            perm_address,mobile,birthdate,gender,marital_status,religion,citizenship,
+            employment_status,voter,is_senior,pwd_status,solo_parent_status,resident_code,family_code)
+            VALUES ('$fn','$mn','$ln','$sx','$hof',
+            '$padr','$mob','$bd','$gen','$ms','$rel','$cit',
+            '$emp','$vtr','$issr','$pwd','$solo','$code','$fc')";
+        if (!mysqli_query($conn, $sql)) return ['ok'=>false,'name'=>"$fn $ln",'msg'=>mysqli_error($conn)];
+
+        $rid = mysqli_insert_id($conn);
+        $adm = mysqli_real_escape_string($conn, $_SESSION['admin'] ?? 'admin');
+        $ip  = $_SERVER['REMOTE_ADDR'];
+        mysqli_query($conn, "INSERT INTO audit_log (action,record_id,resident_name,performed_by,ip_address,notes)
+            VALUES ('CREATE',$rid,'$fn $ln','$adm','$ip','Bulk registration')");
+
+        // Auto-sync to senior_citizens
+        if ($bd) {
+            $sc_bdate = new DateTime($bd);
+            $sc_age   = (new DateTime())->diff($sc_bdate)->y;
+            if ($sc_age >= 60 || $issr === 'Yes') {
+                $sc_bm  = (int)$sc_bdate->format('n');
+                $sc_bd2 = (int)$sc_bdate->format('j');
+                $sc_by  = (int)$sc_bdate->format('Y');
+                $sc_who = mysqli_real_escape_string($conn, $_SESSION['full_name'] ?? $_SESSION['admin']);
+                $exists = $conn->query("SELECT id FROM senior_citizens WHERE last_name='$ln' AND first_name='$fn' AND birth_month=$sc_bm AND birth_day=$sc_bd2 AND birth_year=$sc_by LIMIT 1");
+                if ($exists && $exists->num_rows === 0) {
+                    $conn->query("INSERT INTO senior_citizens (last_name,first_name,middle_name,gender,birth_month,birth_day,birth_year,address,contact_number,status,added_by)
+                        VALUES ('$ln','$fn','$mn','$gen',$sc_bm,$sc_bd2,$sc_by,'$padr','$mob','Active','$sc_who')");
                 }
-                $bulk_results[] = ['ok'=>true,'name'=>"$fn $ln",'code'=>$code,'msg'=>'Added'];
+            }
+        }
+        return ['ok'=>true,'name'=>"$fn $ln",'code'=>$code,'rid'=>$rid,'msg'=>'Added'];
+    };
+
+    if (is_array($bulk_rows)) {
+        // ── PASS 1: find & register the head first to establish family_code ──
+        $head_idx    = null;
+        $family_code = '';
+
+        foreach ($bulk_rows as $i => $row) {
+            $fn = trim($row['first_name'] ?? '');
+            $ln = trim($row['last_name']  ?? '');
+            if (!empty($fn) && !empty($ln) && trim($row['head_of_family'] ?? 'Yes') === 'Yes') {
+                $head_idx = $i;
+                break;
+            }
+        }
+        // Fallback: first valid row becomes head
+        if ($head_idx === null) {
+            foreach ($bulk_rows as $i => $row) {
+                if (!empty(trim($row['first_name'] ?? '')) && !empty(trim($row['last_name'] ?? ''))) {
+                    $head_idx = $i;
+                    $bulk_rows[$i]['head_of_family'] = 'Yes';
+                    break;
+                }
+            }
+        }
+
+        if ($head_idx !== null) {
+            $res = $insertResident($bulk_rows[$head_idx], '');
+            if ($res['ok']) {
+                $family_code = $res['code'];
+                // Backfill family_code = own resident_code for the head
+                $fc_esc = mysqli_real_escape_string($conn, $family_code);
+                mysqli_query($conn, "UPDATE residents SET family_code='$fc_esc' WHERE resident_code='$fc_esc'");
+                $bulk_results[$head_idx] = $res;
                 $bulk_added++;
             } else {
-                $bulk_results[] = ['ok'=>false,'name'=>"$fn $ln",'msg'=>mysqli_error($conn)];
+                $bulk_results[$head_idx] = $res;
                 $bulk_errors++;
             }
         }
+
+        // ── PASS 2: register all other rows with the shared family_code ──────
+        foreach ($bulk_rows as $i => $row) {
+            if ($i === $head_idx) continue;
+            $fn = trim($row['first_name'] ?? '');
+            $ln = trim($row['last_name']  ?? '');
+            if (empty($fn) && empty($ln)) continue; // skip truly empty rows
+
+            $res = $insertResident($row, $family_code);
+            $bulk_results[$i] = $res;
+            if ($res['ok']) $bulk_added++; else $bulk_errors++;
+        }
+
+        ksort($bulk_results); // restore original row order for display
+        $bulk_results = array_values($bulk_results);
     }
     // Stay on page to show results
 } elseif (!isset($_POST['_bulk_submit'])) {
@@ -243,11 +288,8 @@ if (isset($_POST['citizenship']) && in_array($_POST['citizenship'], ['Other', 'D
     <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0">
       <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
     </div>
-    <div><div class="topbar-name">Barangay 410</div><div class="topbar-sub">Residents</div></div>
+    <div><div class="topbar-name">Barangay 410</div></div>
   </a>
-  <div style="display:flex;align-items:center;gap:6px;border-left:1px solid rgba(255,255,255,.12);padding-left:14px">
-    <span style="font-size:13px;font-weight:700;color:#fff;font-family:'Syne',sans-serif"><i class="fas fa-user-plus" style="opacity:.8;margin-right:5px"></i> Register Resident</span>
-  </div>
   <div class="topbar-right" style="margin-left:auto">
     <a href="Display_List.php" class="btn btn-nav" style="font-size:13px"><i class="fas fa-arrow-left"></i> Back to List</a>
     <div title="<?=$rbadge['label']?>" style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;<?php if($is_captain): ?>background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#fbbf24;<?php elseif($is_secretary): ?>background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:#93c5fd;<?php else: ?>background:rgba(148,163,184,.15);border:1px solid rgba(148,163,184,.3);color:#94a3b8;<?php endif; ?>">
@@ -1172,7 +1214,7 @@ if (isset($_POST['citizenship']) && in_array($_POST['citizenship'], ['Other', 'D
     <div>
       <strong>Tips for multiple entries:</strong><br>
       • Fill at minimum: <strong>First Name, Last Name, Birthdate, Gender</strong> per row<br>
-      • Each row gets an auto-generated Resident ID (e.g. <code>040920260001</code>)<br>
+      • Each row gets an auto-generated Resident ID (e.g. <code>04-0526-1001-00</code>)<br>
       • Duplicate entries (same name + birthdate) are automatically skipped<br>
       • <span style="color:#3b82f6;font-weight:600"><i class="fas fa-paste"></i> Excel tip:</span> Copy rows in Excel → click any cell in the table → Paste
     </div>
@@ -1249,30 +1291,86 @@ if (isset($_POST['citizenship']) && in_array($_POST['citizenship'], ['Other', 'D
     <?= csrf_field() ?>
     <input type="hidden" name="bulk_rows" id="bulkRowsInput">
     <input type="hidden" name="_bulk_submit" value="1">
-    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:1rem;border-top:1px solid #f1f5f9">
+    <div style="display:flex;align-items:center;gap:10px;padding-top:1rem;border-top:1px solid #f1f5f9">
       <button type="button" onclick="clearBulk()"
         style="padding:9px 18px;border:1px solid #e2e8f0;border-radius:8px;font-family:Inter,sans-serif;font-size:13px;font-weight:500;cursor:pointer;color:#0f172a;display:flex;align-items:center;gap:6px">
         <i class="fas fa-trash" style="color:#f43f5e"></i> Clear All
       </button>
-      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <div style="position:relative">
-          <i class="fas fa-key" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px"></i>
-          <input type="password" id="bulkConfirmPw" placeholder="Admin password to confirm"
-            style="padding:9px 14px 9px 34px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;outline:none;min-width:220px;box-sizing:border-box;transition:border .2s"
-            onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e2e8f0'"
-            onkeydown="if(event.key==='Enter')submitBulk()">
-        </div>
-        <button type="button" onclick="submitBulk()" id="bulkSubmitBtn"
-          style="padding:9px 24px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-family:Inter,sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;white-space:nowrap"
-          onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#3b82f6'">
-          <i class="fas fa-save"></i> Save All Residents
-        </button>
-      </div>
-      <div id="bulkPwErr" style="width:100%;color:#be123c;font-size:12px;display:none;margin-top:4px">
-        <i class="fas fa-exclamation-circle"></i> <span id="bulkPwErrMsg">Incorrect password.</span>
-      </div>
+      <button type="button" onclick="openBulkPwModal()" id="bulkSubmitBtn"
+        style="margin-left:auto;padding:9px 24px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-family:Inter,sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;white-space:nowrap"
+        onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#3b82f6'">
+        <i class="fas fa-save"></i> Save All Residents
+      </button>
     </div>
   </form>
+
+  <!-- ── Floating password modal ── -->
+  <style>
+  @keyframes bpm-overlay-in { from{opacity:0} to{opacity:1} }
+  @keyframes bpm-modal-in   { from{opacity:0;transform:translate(-50%,-48%) scale(.96)} to{opacity:1;transform:translate(-50%,-50%) scale(1)} }
+  #bulkPwModal { animation: bpm-modal-in .2s cubic-bezier(.22,1,.36,1) both }
+  #bulkPwOverlay { animation: bpm-overlay-in .18s ease both }
+  #bulkModalConfirmBtn:hover { background:#1d4ed8 !important }
+  #bulkModalConfirmBtn:disabled { opacity:.7;cursor:not-allowed }
+  </style>
+
+  <div id="bulkPwOverlay" onclick="closeBulkPwModal()" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:900"></div>
+
+  <div id="bulkPwModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:901;background:#fff;border-radius:16px;width:400px;max-width:calc(100vw - 2rem);box-shadow:0 24px 64px rgba(15,23,42,.18),0 0 0 1px #e2e8f0">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1.25rem 1.5rem;border-bottom:1px solid #f1f5f9">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:36px;height:36px;border-radius:10px;background:#eff6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="fas fa-lock" style="color:#3b82f6;font-size:15px"></i>
+        </div>
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:.95rem;color:#0f172a;line-height:1.2">Password Required</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:1px">Saving <span id="bulkSaveCount" style="font-weight:700;color:#3b82f6"></span> resident(s)</div>
+        </div>
+      </div>
+      <button type="button" onclick="closeBulkPwModal()"
+        style="width:32px;height:32px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;cursor:pointer;color:#64748b;font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1">
+        &times;
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div style="padding:1.5rem">
+      <div style="font-size:13px;color:#475569;margin-bottom:1rem;line-height:1.5">
+        Enter your <strong style="color:#0f172a">admin password</strong> to authorize this registration and save the records.
+      </div>
+
+      <div style="position:relative;margin-bottom:.75rem">
+        <i class="fas fa-key" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:12px;pointer-events:none"></i>
+        <input type="password" id="bulkConfirmPw" placeholder="Enter admin password"
+          style="width:100%;padding:11px 42px 11px 36px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;font-family:Inter,sans-serif;outline:none;box-sizing:border-box;color:#0f172a;background:#fafafa;transition:border-color .15s,box-shadow .15s"
+          onfocus="this.style.borderColor='#3b82f6';this.style.boxShadow='0 0 0 3px rgba(59,130,246,.1)';this.style.background='#fff'"
+          onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none';this.style.background='#fafafa'"
+          onkeydown="if(event.key==='Enter')confirmBulkSave();if(event.key==='Escape')closeBulkPwModal()">
+        <button type="button" onclick="toggleBulkPw()" tabindex="-1"
+          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#94a3b8;font-size:13px;padding:5px;line-height:1;z-index:2">
+          <i class="fas fa-eye" id="bulkPwEyeIcon"></i>
+        </button>
+      </div>
+
+      <div id="bulkPwErr" style="display:none;background:#fff1f2;border:1px solid #fecdd3;border-radius:8px;padding:8px 12px;margin-bottom:.75rem;font-size:12px;color:#be123c">
+        <i class="fas fa-circle-exclamation" style="margin-right:5px"></i><span id="bulkPwErrMsg">Incorrect password.</span>
+      </div>
+
+      <!-- Buttons -->
+      <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px;margin-top:1.25rem">
+        <button type="button" onclick="closeBulkPwModal()"
+          style="padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;font-family:Inter,sans-serif;font-size:13px;font-weight:600;cursor:pointer;color:#475569;background:#fff;width:100%">
+          Cancel
+        </button>
+        <button type="button" onclick="confirmBulkSave()" id="bulkModalConfirmBtn"
+          style="padding:11px;background:#2563eb;color:#fff;border:none;border-radius:10px;font-family:Inter,sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;transition:background .15s">
+          <i class="fas fa-floppy-disk"></i> Save All Residents
+        </button>
+      </div>
+    </div>
+  </div>
 
 </div><!-- end bulkMode -->
 
@@ -1535,7 +1633,9 @@ function clearBulk() {
   addBulkRow(); addBulkRow(); addBulkRow();
 }
 
-function submitBulk() {
+let _bulkRows = [];
+
+function openBulkPwModal() {
   const rows = [];
   let hasErr = false;
   document.querySelectorAll('#bulkBody tr').forEach(tr => {
@@ -1551,30 +1651,64 @@ function submitBulk() {
   });
   if (hasErr) { alert('Rows highlighted in red are missing required fields (First Name, Last Name, Birthdate).'); return; }
   if (!rows.length) { alert('No data to save. Add at least one row.'); return; }
+  _bulkRows = rows;
 
+  const countEl = document.getElementById('bulkSaveCount');
+  if (countEl) countEl.textContent = rows.length;
+
+  document.getElementById('bulkConfirmPw').value = '';
+  document.getElementById('bulkPwErr').style.display = 'none';
+  document.getElementById('bulkPwOverlay').style.display = 'block';
+  document.getElementById('bulkPwModal').style.display = 'block';
+  setTimeout(() => document.getElementById('bulkConfirmPw').focus(), 80);
+}
+
+function closeBulkPwModal() {
+  document.getElementById('bulkPwOverlay').style.display = 'none';
+  document.getElementById('bulkPwModal').style.display = 'none';
+  document.getElementById('bulkConfirmPw').value = '';
+  document.getElementById('bulkPwErr').style.display = 'none';
+}
+
+function toggleBulkPw() {
+  const inp = document.getElementById('bulkConfirmPw');
+  const icon = document.getElementById('bulkPwEyeIcon');
+  if (inp.type === 'password') { inp.type = 'text'; icon.className = 'fas fa-eye-slash'; }
+  else { inp.type = 'password'; icon.className = 'fas fa-eye'; }
+}
+
+function confirmBulkSave() {
   const pw = document.getElementById('bulkConfirmPw').value;
   const errBox = document.getElementById('bulkPwErr');
   const errMsg = document.getElementById('bulkPwErrMsg');
-  if (!pw) { errBox.style.display='flex'; errMsg.textContent='Please enter your admin password.'; document.getElementById('bulkConfirmPw').focus(); return; }
+  if (!pw) { errBox.style.display='block'; errMsg.textContent='Please enter your admin password.'; document.getElementById('bulkConfirmPw').focus(); return; }
   errBox.style.display = 'none';
+
+  const btn = document.getElementById('bulkModalConfirmBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
 
   const fd2 = new FormData(); fd2.append('password', pw);
   fetch('verify_secretary.php', {method:'POST', body:fd2})
     .then(r => r.json())
     .then(res => {
       if (res.ok) {
-        document.getElementById('bulkRowsInput').value = JSON.stringify(rows);
-        const btn = document.getElementById('bulkSubmitBtn');
-        btn.disabled = true;
+        document.getElementById('bulkRowsInput').value = JSON.stringify(_bulkRows);
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
         document.getElementById('bulkForm').submit();
       } else {
-        errBox.style.display = 'flex';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save"></i> Save All Residents';
+        errBox.style.display = 'block';
         errMsg.textContent = res.message || 'Incorrect password.';
         document.getElementById('bulkConfirmPw').value = '';
         document.getElementById('bulkConfirmPw').focus();
       }
-    }).catch(() => { errBox.style.display='flex'; errMsg.textContent='Server error.'; });
+    }).catch(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-save"></i> Save All Residents';
+      errBox.style.display = 'block'; errMsg.textContent = 'Server error. Try again.';
+    });
 }
 
 // ── Paste from Excel ───────────────────────────────────────────────────────
@@ -1783,6 +1917,7 @@ document.getElementById('menuToggle').addEventListener('click',openSidebar);
 
 </body>
 </html>
+
 
 
 

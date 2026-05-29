@@ -282,7 +282,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
     <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0">
       <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
     </div>
-    <div><div class="topbar-name">Barangay 410</div><div class="topbar-sub">Residents</div></div>
+    <div><div class="topbar-name">Barangay 410</div></div>
   </a>
   <div style="display:flex;align-items:center;gap:6px;border-left:1px solid rgba(255,255,255,.12);padding-left:14px">
     <span style="font-size:13px;font-weight:700;color:#fff;font-family:'Syne',sans-serif"><i class="fas fa-user-pen" style="opacity:.8;margin-right:5px"></i> Edit Resident</span>
@@ -847,6 +847,7 @@ function resetZoom(){zoomLvl=1;localStorage.setItem('rbi_zoom','1');applyZoom();
 </script>
 </body>
 </html>
+
 
 
 

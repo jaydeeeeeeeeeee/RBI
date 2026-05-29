@@ -140,9 +140,9 @@ $_sb_court    = (int)($conn->query("SELECT COUNT(*) AS t FROM blotter_cases WHER
     </span>
     <button onclick="ebOpenSidebar()" title="Menu"
       style="width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;padding:0;flex-shrink:0">
-      <span style="display:block;width:16px;height:2px;border-radius:2px"></span>
-      <span style="display:block;width:16px;height:2px;border-radius:2px"></span>
-      <span style="display:block;width:16px;height:2px;border-radius:2px"></span>
+      <span style="display:block;width:16px;height:2px;border-radius:2px;background:#fff"></span>
+      <span style="display:block;width:16px;height:2px;border-radius:2px;background:#fff"></span>
+      <span style="display:block;width:16px;height:2px;border-radius:2px;background:#fff"></span>
     </button>
   </div>
 </header>

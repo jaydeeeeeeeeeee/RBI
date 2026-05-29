@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 if (!isset($_SESSION['admin'])) { header("Location: admin.php"); exit(); }
 include 'Residents_DB.php';
@@ -175,12 +175,18 @@ $_brgy = defined('BRGY_NAME') ? BRGY_NAME : 'Barangay';
 <link rel="stylesheet" href="assets/css/main.css?v=<?=filemtime(__DIR__.'/assets/css/main.css')?>"/>
 <style>
 /* ── PAGE HERO ── */
-.page-hero{background:linear-gradient(to right,rgba(15,23,42,.92),rgba(15,23,42,.65)),url('images/Barangay_officials_410.png') center 60%/cover no-repeat;padding:2.5rem 2rem}
+.page-hero{background:linear-gradient(to right,rgba(15,23,42,.85),rgba(15,23,42,.55)),url('images/Barangay_officials_410.png') center center/cover no-repeat;padding:2.5rem 2rem;min-height:300px;display:flex;align-items:center}
 .page-hero h1{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:#fff;margin:0 0 .3rem}
 .page-hero p{color:rgba(255,255,255,.55);font-size:.85rem;margin:0 0 1.25rem}
 .hero-nav a{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;font-size:.8rem;font-weight:600;text-decoration:none;margin-right:8px}
 .hero-nav .ghost{border:1.5px solid rgba(255,255,255,.25);color:#fff;background:rgba(255,255,255,.08)}
 .hero-nav .active{border:1.5px solid var(--blue);color:#fff;background:var(--blue)}
+@media print{
+  header.topbar,.sidebar,.sidebar-overlay,.page-hero,footer,
+  #settingsOverlay,#settingsDrawer,.tab-bar,.btn,button{display:none!important}
+  body{background:#fff}
+  main{padding:0;max-width:100%}
+}
 
 main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
 
@@ -227,11 +233,15 @@ main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
 .stock-bar-fill{height:100%;border-radius:4px;transition:width .4s}
 .equip-actions{display:flex;gap:8px;flex-wrap:wrap}
 
-/* ── BORROW PANEL (inline) ── */
-.borrow-panel{display:none;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:1rem;margin-top:2px}
-.bp-label{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;display:block}
-.bp-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-.bp-group{margin-bottom:10px}
+/* ── BORROW MODAL ── */
+.borrow-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1200;align-items:center;justify-content:center}
+.borrow-modal-overlay.open{display:flex}
+.borrow-modal{background:#fff;border-radius:16px;width:100%;max-width:480px;margin:1rem;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;animation:modalIn .22s ease}
+@keyframes modalIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.bm-head{background:var(--navy);padding:1.1rem 1.4rem;display:flex;align-items:center;justify-content:space-between}
+.bm-close{width:30px;height:30px;background:rgba(255,255,255,.1);border:none;border-radius:8px;color:#fff;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;line-height:1}
+.bm-close:hover{background:rgba(255,255,255,.2)}
+.bm-body{padding:1.4rem}
 
 /* ── TABS ── */
 .tabs{display:flex;gap:4px;margin-bottom:1.25rem;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:4px;width:fit-content}
@@ -271,7 +281,7 @@ main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
     <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0">
       <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
     </div>
-    <div><div class="topbar-name"><?= $_brgy ?></div><div class="topbar-sub">Equipment Borrowing</div></div>
+    <div><div class="topbar-name"><?= $_brgy ?></div></div>
   </a>
   <div class="topbar-right">
     <div style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:4px 12px;border-radius:20px;border:1px solid;
@@ -297,6 +307,7 @@ main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
     </div>
     <button class="sidebar-close-btn" onclick="closeSidebar()"><i class="fas fa-times"></i></button>
   </div>
+  <div style="padding:14px 12px 6px"><button onclick="openSettings()" class="sidebar-settings-btn" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);color:#93c5fd;font-family:Inter,sans-serif;font-size:13px;font-weight:600;cursor:pointer"><i class="fas fa-gear"></i> Settings & More<i class="fas fa-arrow-right" style="margin-left:auto;font-size:10px;opacity:.6"></i></button></div>
   <div class="sidebar-section">
     <div class="sidebar-label">Main</div>
     <a href="Home.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-house"></i></span> Dashboard</a>
@@ -323,12 +334,16 @@ main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
 
 <!-- ══ HERO ════════════════════════════════════════════════════════════════════ -->
 <div class="page-hero">
-  <h1><i class="fas fa-box-archive" style="font-size:1.6rem;margin-right:.5rem;opacity:.85"></i>Equipment Borrowing</h1>
-  <p>Manage barangay equipment inventory, lending requests, and return tracking.</p>
-  <div class="hero-nav">
-    <a href="#inventory" class="active" id="tab-inventory-link"><i class="fas fa-boxes-stacked"></i> Inventory</a>
-    <a href="#borrowed" class="ghost" id="tab-borrowed-link"><i class="fas fa-hand-holding"></i> Borrowed (<?= $borrowed_count ?>)</a>
-    <a href="#history" class="ghost" id="tab-history-link"><i class="fas fa-clock-rotate-left"></i> History</a>
+  <div style="max-width:1200px;width:100%">
+    <h1><i class="fas fa-box-archive" style="font-size:1.6rem;margin-right:.5rem;opacity:.85"></i>Equipment Borrowing</h1>
+    <p>Manage barangay equipment inventory, lending requests, and return tracking.</p>
+  </div>
+</div>
+<div style="background:#fff;border-bottom:1px solid #e2e8f0;padding:0 2rem">
+  <div style="max-width:1200px;margin:0 auto;display:flex;gap:.25rem">
+    <a href="#inventory" id="tab-inventory-link" style="display:inline-flex;align-items:center;gap:7px;padding:14px 18px;font-size:13px;font-weight:600;color:#3b82f6;border-bottom:2px solid #3b82f6;text-decoration:none"><i class="fas fa-boxes-stacked"></i> Inventory</a>
+    <a href="#borrowed" id="tab-borrowed-link" style="display:inline-flex;align-items:center;gap:7px;padding:14px 18px;font-size:13px;font-weight:600;color:#64748b;border-bottom:2px solid transparent;text-decoration:none"><i class="fas fa-hand-holding"></i> Borrowed (<?= $borrowed_count ?>)</a>
+    <a href="#history" id="tab-history-link" style="display:inline-flex;align-items:center;gap:7px;padding:14px 18px;font-size:13px;font-weight:600;color:#64748b;border-bottom:2px solid transparent;text-decoration:none"><i class="fas fa-clock-rotate-left"></i> History</a>
   </div>
 </div>
 
@@ -440,7 +455,7 @@ main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
         <div class="stock-bar"><div class="stock-bar-fill" style="width:<?= $pct ?>%;background:<?= $barCol ?>"></div></div>
         <div class="equip-actions">
           <?php if ($row['available'] > 0 && $cond !== 'Retired'): ?>
-          <button class="btn btn-primary btn-sm" onclick="toggleBorrow(<?= $row['id'] ?>)"><i class="fas fa-hand-holding"></i> Borrow</button>
+          <button class="btn btn-primary btn-sm" onclick="openBorrowModal(<?= $row['id'] ?>, '<?= addslashes(htmlspecialchars($row['item_name'])) ?>')"><i class="fas fa-hand-holding"></i> Borrow</button>
           <?php else: ?>
           <span class="btn btn-sm btn-outline" style="cursor:default;pointer-events:none"><i class="fas fa-ban"></i> <?= $cond === 'Retired' ? 'Retired' : 'Unavailable' ?></span>
           <?php endif; ?>
@@ -449,50 +464,6 @@ main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
           <?php endif; ?>
         </div>
 
-        <!-- INLINE BORROW FORM -->
-        <div id="borrow-<?= $row['id'] ?>" class="borrow-panel">
-          <form method="POST">
-            <input type="hidden" name="equipment_id" value="<?= $row['id'] ?>">
-            <div class="bp-group">
-              <label class="bp-label">Borrower Name</label>
-              <input type="text" name="borrower_name" list="all_borrowers_<?= $row['id'] ?>"
-                     class="form-control" placeholder="Search resident or senior…" autocomplete="off" required>
-              <datalist id="all_borrowers_<?= $row['id'] ?>">
-                <?php foreach ($seniors_list as $sn): ?><option value="<?= htmlspecialchars($sn) ?>"><?php endforeach; ?>
-                <?php foreach ($residents_list as $rn): ?><option value="<?= htmlspecialchars($rn) ?>"><?php endforeach; ?>
-              </datalist>
-            </div>
-            <div class="bp-row">
-              <div>
-                <label class="bp-label">Purpose</label>
-                <select name="purpose" id="purpose-<?= $row['id'] ?>" class="form-control" onchange="toggleOther(<?= $row['id'] ?>)">
-                  <option value="Birthday">Birthday</option>
-                  <option value="Event">Event</option>
-                  <option value="Meeting">Meeting</option>
-                  <option value="Others">Others</option>
-                </select>
-              </div>
-              <div id="other-wrap-<?= $row['id'] ?>" style="display:none">
-                <label class="bp-label">Specify</label>
-                <input type="text" name="other_purpose" class="form-control" placeholder="Specify purpose">
-              </div>
-            </div>
-            <div class="bp-row">
-              <div>
-                <label class="bp-label">Borrow Date</label>
-                <input type="date" name="borrow_date" class="form-control" value="<?= date('Y-m-d') ?>" required>
-              </div>
-              <div>
-                <label class="bp-label">Return By</label>
-                <input type="date" name="return_date" class="form-control" required>
-              </div>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button type="submit" name="borrow_submit" class="btn btn-success btn-sm" style="flex:1"><i class="fas fa-check"></i> Confirm</button>
-              <button type="button" class="btn btn-outline btn-sm" onclick="toggleBorrow(<?= $row['id'] ?>)">Cancel</button>
-            </div>
-          </form>
-        </div>
       </div>
       <?php endwhile; ?>
     </div>
@@ -574,14 +545,97 @@ main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
   &copy; <?= date('Y') ?> ProjectRBI – <?= $_brgy ?> Census Management System · Manila City
 </footer>
 
+<div id="settingsOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1100" onclick="closeSettings()"></div>
+<div id="settingsDrawer" style="position:fixed;top:0;right:-360px;width:340px;height:100vh;background:#0f172a;z-index:1101;transition:right .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,.08)">
+  <div style="padding:20px 20px 14px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:32px;height:32px;background:linear-gradient(135deg,#3b82f6,#14b8a6);border-radius:8px;display:flex;align-items:center;justify-content:center"><i class="fas fa-gear" style="color:#fff;font-size:13px"></i></div>
+      <div><div style="font-family:Syne,sans-serif;font-size:14px;font-weight:800;color:#fff">Settings</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Equipment Borrowing</div></div>
+    </div>
+    <button onclick="closeSettings()" style="width:28px;height:28px;background:rgba(255,255,255,.08);border:none;border-radius:7px;color:rgba(255,255,255,.6);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center"><i class="fas fa-times"></i></button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:16px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Actions</div>
+    <button onclick="printEquip()" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer">
+      <div style="width:30px;height:30px;background:rgba(255,255,255,.08);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-print" style="color:#94a3b8;font-size:13px"></i></div>
+      <div style="text-align:left"><div style="font-size:13px;font-weight:600;color:#fff">Print Inventory</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Print the equipment list</div></div>
+    </button>
+  </div>
+  <div style="padding:14px 16px;border-top:1px solid rgba(255,255,255,.07)">
+    <a href="logout.php" style="display:flex;align-items:center;gap:10px;background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.25);border-radius:10px;padding:12px 14px;text-decoration:none">
+      <div style="width:30px;height:30px;background:rgba(244,63,94,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-right-from-bracket" style="color:#f43f5e;font-size:13px"></i></div>
+      <div><div style="font-size:13px;font-weight:700;color:#f43f5e">Logout</div><div style="font-size:11px;color:rgba(244,63,94,.6)">End your session</div></div>
+    </a>
+  </div>
+</div>
+
+<!-- ══ BORROW MODAL ═════════════════════════════════════════════════════════════ -->
+<div class="borrow-modal-overlay" id="borrowModalOverlay" onclick="closeBorrowModal()">
+  <div class="borrow-modal" onclick="event.stopPropagation()">
+    <div class="bm-head">
+      <div>
+        <div style="font-size:.95rem;font-weight:700;color:#fff"><i class="fas fa-hand-holding" style="margin-right:8px;opacity:.8"></i>Borrow Equipment</div>
+        <div id="borrowModalEquipName" style="font-size:12px;color:rgba(255,255,255,.5);margin-top:2px"></div>
+      </div>
+      <button class="bm-close" onclick="closeBorrowModal()">&times;</button>
+    </div>
+    <div class="bm-body">
+      <form method="POST">
+        <input type="hidden" name="equipment_id" id="borrowEquipId">
+        <div style="margin-bottom:12px">
+          <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Borrower Name</label>
+          <input type="text" name="borrower_name" id="borrowerNameInput" list="modal_borrowers"
+                 class="form-control" placeholder="Search resident or senior…" autocomplete="off" required>
+          <datalist id="modal_borrowers">
+            <?php foreach ($seniors_list as $sn): ?><option value="<?= htmlspecialchars($sn) ?>"><?php endforeach; ?>
+            <?php foreach ($residents_list as $rn): ?><option value="<?= htmlspecialchars($rn) ?>"><?php endforeach; ?>
+          </datalist>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Purpose</label>
+            <select name="purpose" id="modalPurpose" class="form-control" onchange="toggleModalOther()">
+              <option value="Birthday">Birthday</option>
+              <option value="Event">Event</option>
+              <option value="Meeting">Meeting</option>
+              <option value="Others">Others</option>
+            </select>
+          </div>
+          <div id="modalOtherWrap" style="display:none">
+            <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Specify</label>
+            <input type="text" name="other_purpose" class="form-control" placeholder="Specify purpose">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1.25rem">
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Borrow Date</label>
+            <input type="date" name="borrow_date" class="form-control" value="<?= date('Y-m-d') ?>" required>
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Return By</label>
+            <input type="date" name="return_date" class="form-control" required>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button type="submit" name="borrow_submit" class="btn btn-success" style="flex:1"><i class="fas fa-check"></i> Confirm Borrow</button>
+          <button type="button" class="btn btn-outline" onclick="closeBorrowModal()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>
 // Clock
 function tc(){const n=new Date();document.getElementById('clock').textContent=n.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})+' '+n.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'});}tc();setInterval(tc,1000);
 // Sidebar
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sidebarOverlay').classList.add('open');document.body.style.overflow='hidden';}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('open');document.body.style.overflow='';}
+function openSettings(){document.getElementById('settingsOverlay').style.display='block';document.getElementById('settingsDrawer').style.right='0';document.body.style.overflow='hidden';closeSidebar();}
+function closeSettings(){document.getElementById('settingsOverlay').style.display='none';document.getElementById('settingsDrawer').style.right='-360px';document.body.style.overflow='';}
+function printEquip(){closeSettings();setTimeout(()=>window.print(),350);}
 document.getElementById('menuToggle').addEventListener('click',openSidebar);
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSidebar();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSettings();closeSidebar();closeBorrowModal();}});
 
 // Tab switching
 const tabs = {
@@ -614,23 +668,28 @@ function toggleAddPanel(){
   p.style.display = p.style.display === 'block' ? 'none' : 'block';
 }
 
-// Borrow panel
-function toggleBorrow(id) {
-  const f = document.getElementById('borrow-' + id);
-  const open = f.style.display === 'block';
-  document.querySelectorAll('.borrow-panel').forEach(el => el.style.display = 'none');
-  if (!open) {
-    f.style.display = 'block';
-    f.querySelector('input[name="borrower_name"]').value = '';
-  }
+// Borrow modal
+function openBorrowModal(id, name) {
+  document.getElementById('borrowEquipId').value = id;
+  document.getElementById('borrowModalEquipName').textContent = name;
+  document.getElementById('borrowerNameInput').value = '';
+  document.getElementById('modalPurpose').value = 'Birthday';
+  document.getElementById('modalOtherWrap').style.display = 'none';
+  document.getElementById('borrowModalOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => document.getElementById('borrowerNameInput').focus(), 120);
 }
-
-// Other purpose
-function toggleOther(id) {
-  const val  = document.getElementById('purpose-' + id).value;
-  const wrap = document.getElementById('other-wrap-' + id);
-  wrap.style.display = val === 'Others' ? 'block' : 'none';
+function closeBorrowModal() {
+  document.getElementById('borrowModalOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function toggleModalOther() {
+  document.getElementById('modalOtherWrap').style.display =
+    document.getElementById('modalPurpose').value === 'Others' ? 'block' : 'none';
 }
 </script>
 </body>
 </html>
+
+
+

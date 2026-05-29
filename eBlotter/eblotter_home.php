@@ -127,7 +127,6 @@ include '_eb_topbar.php';
 <!-- Hero Banner — full width outside main -->
 <div class="hero-banner">
   <div class="inner">
-    <img src="../images/brgy410_logo.png" class="eb-hero-seal" style="width:90px;height:90px;object-fit:cover;border-radius:50%;flex-shrink:0">
     <div class="eb-hero-text">
       <h1>eBlotter</h1>
       <p><?= defined('BRGY_NAME') ? htmlspecialchars(BRGY_NAME) : 'Barangay' ?> Case Management System &mdash; <?= defined('BRGY_CITY') ? htmlspecialchars(BRGY_CITY) : 'Manila' ?>, District <?= defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : '' ?></p>

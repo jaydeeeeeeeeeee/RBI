@@ -59,6 +59,34 @@ require_once __DIR__ . '/barcode.php';
 class SummonsPDF extends FPDF {
     public string $exportedBy='', $exportedAt='';
 
+    public $wmLogo = null;
+    public $extgstates = [];
+
+    function SetAlpha($alpha) {
+        foreach ($this->extgstates as $i => $v) {
+            if (abs($v['ca']-$alpha)<0.001) { $this->_out('/GS'.$i.' gs'); return; }
+        }
+        $i = count($this->extgstates)+1;
+        $this->extgstates[$i] = ['ca'=>$alpha,'n'=>0];
+        $this->_out('/GS'.$i.' gs');
+    }
+    function _putresourcedict() {
+        parent::_putresourcedict();
+        if (!empty($this->extgstates)) {
+            $this->_put('/ExtGState <<');
+            foreach ($this->extgstates as $k=>$v) $this->_put('/GS'.$k.' '.$v['n'].' 0 R');
+            $this->_put('>>');
+        }
+    }
+    function _putresources() {
+        foreach ($this->extgstates as $k=>&$v) {
+            $this->_newobj(); $v['n']=$this->n;
+            $this->_put('<</Type /ExtGState /ca '.$v['ca'].' /CA '.$v['ca'].' /BM /Normal>>');
+            $this->_put('endobj');
+        }
+        parent::_putresources();
+    }
+
     function RotatedText($x, $y, $txt, $angle) {
         $this->_out('q');
         $rad = deg2rad($angle);
@@ -74,33 +102,43 @@ class SummonsPDF extends FPDF {
     }
 
     function Header(){
-        // Seal watermark centered on page
-        $logos = [
-            __DIR__ . '/images/brgy410_logo.png',
-            __DIR__ . '/images/brgy410_logo.png',
-        ];
-        foreach ($logos as $logo) {
-            if (file_exists($logo)) {
-                $size = 90;
-                $x = ($this->GetPageWidth()  - $size) / 2;
-                $y = ($this->GetPageHeight() - $size) / 2;
-                $this->Image($logo, $x, $y, $size);
-                break;
-            }
+        $W=$this->GetPageWidth(); $H=$this->GetPageHeight();
+        // Watermark
+        $wm=dirname(__DIR__).'/images/Brgy410_seal.png';
+        if(file_exists($wm)){
+            $sz=90;
+            $this->_out('q'); $this->SetAlpha(0.07);
+            $this->Image($wm,($W-$sz)/2,($H-$sz)/2-10,$sz);
+            $this->_out('Q'); $this->SetAlpha(1);
         }
-
-        $this->SetFont('Times', '', 10);
-        $this->SetTextColor(0, 0, 0);
-        $this->SetXY(38, 8);
-        $this->Cell(134, 4.5, 'Republic of the Philippines', 0, 1, 'C');
-        $this->SetX(38); $this->Cell(134, 4.5, 'City of Manila', 0, 1, 'C');
-        $this->SetFont('Times', 'B', 10);
-        $this->SetX(38); $this->Cell(134, 4.5, defined('BRGY_FULLNAME') ? BRGY_FULLNAME : 'Barangay 410 Zone 42', 0, 1, 'C');
-        $this->SetFont('Times', '', 10);
-        $this->SetX(38); $this->Cell(134, 4.5, 'District ' . (defined('BRGY_DISTRICT') ? BRGY_DISTRICT : 'IV'), 0, 1, 'C');
-        $this->Ln(3);
-        $this->SetFont('Times', 'B', 13);
-        $this->Cell(0, 6, 'OFFICE OF THE LUPONG TAGAPAMAYAPA', 0, 1, 'C');
+        // 4 logos
+        $hy=10; $ls=18; $ib=dirname(__DIR__).'/images/';
+        if(file_exists($ib.'logo_bagong_pilipinas.png'))  $this->Image($ib.'logo_bagong_pilipinas.png',  12,             $hy,$ls);
+        if(file_exists($ib.'Brgy410_seal.png'))           $this->Image($ib.'Brgy410_seal.png',           12+$ls+2,      $hy,$ls);
+        if(file_exists($ib.'lungsod_ng_manila_logo.png')) $this->Image($ib.'lungsod_ng_manila_logo.png', $W-12-$ls*2-2, $hy,$ls);
+        if(file_exists($ib.'barangay-logo.png'))          $this->Image($ib.'barangay-logo.png',          $W-12-$ls,     $hy,$ls);
+        // Center text
+        $cx=12+$ls*2+4; $cw=$W-24-$ls*4-8;
+        $this->SetTextColor(0,0,0);
+        $this->SetFont('Times','B',9);
+        $this->SetXY($cx,$hy+1); $this->Cell($cw,4,'Republic of the Philippines',0,1,'C');
+        $this->SetX($cx);        $this->Cell($cw,4,'National Capital Region',0,1,'C');
+        $this->SetFont('Times','B',10);
+        $this->SetX($cx);        $this->Cell($cw,4,'City of Manila',0,1,'C');
+        $this->SetFont('Times','B',8);
+        $this->SetX($cx);        $this->Cell($cw,4,'TANGGAPAN NG PUNONG BARANGAY',0,1,'C');
+        $this->SetFont('Times','',7.5);
+        $this->SetX($cx);        $this->Cell($cw,3.5,'Barangay 410, Zone 42, District IV, Manila',0,1,'C');
+        $this->SetX($cx);        $this->Cell($cw,3.5,'230 M. F. Jhocson St. Sampaloc, Manila',0,1,'C');
+        // Separator
+        $sep_y=max($this->GetY(),$hy+$ls)+2;
+        $this->SetDrawColor(0,0,0); $this->SetLineWidth(0.5);
+        $this->Line(12,$sep_y,$W-12,$sep_y);
+        $this->SetLineWidth(0.2); $this->Line(12,$sep_y+1.5,$W-12,$sep_y+1.5);
+        // Office title
+        $this->SetFont('Times','B',12); $this->SetTextColor(0,0,0);
+        $this->SetXY(20,$sep_y+4);
+        $this->Cell($W-40,5,'OFFICE OF THE LUPONG TAGAPAMAYAPA',0,1,'C');
         $this->Ln(1);
     }
 
@@ -125,7 +163,7 @@ class SummonsPDF extends FPDF {
 $pdf = new SummonsPDF('P', 'mm', 'Legal');
 $pdf->SetAutoPageBreak(true, 15);
 $pdf->SetTitle('Summons - '.$case_id);
-$pdf->SetMargins(20, 10, 14);
+$pdf->SetMargins(20, 55, 14);
 $pdf->AddPage();
 
 

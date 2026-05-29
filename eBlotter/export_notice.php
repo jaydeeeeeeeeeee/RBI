@@ -65,30 +65,50 @@ function drawNoticeCopy(FPDF $pdf, float $startY,
     $pw  = 166;
 
     $y = $startY;
+    $ls = 13; $ib = dirname(__DIR__).'/images/';
 
-    $pdf->SetFont('Times', 'I', 9);
-    $pdf->SetTextColor(0, 0, 0);
-    // $showRef reserved for future use (reference number removed)
-    foreach (['Republic of the Philippines', 'City of Manila', 'City of Manila', defined('BRGY_FULLNAME') ? BRGY_FULLNAME : 'Barangay 410 Zone 42'] as $line) {
-        $pdf->SetXY($ml, $y);
-        $pdf->Cell($pw, 4, $line, 0, 1, 'C');
-        $y += 4;
-    }
+    // 4 logos (compact for half-page)
+    if(file_exists($ib.'logo_bagong_pilipinas.png'))  $pdf->Image($ib.'logo_bagong_pilipinas.png',  $ml,           $y,$ls);
+    if(file_exists($ib.'Brgy410_seal.png'))           $pdf->Image($ib.'Brgy410_seal.png',           $ml+$ls+1,    $y,$ls);
+    if(file_exists($ib.'lungsod_ng_manila_logo.png')) $pdf->Image($ib.'lungsod_ng_manila_logo.png', $ml+$pw-$ls*2-1,$y,$ls);
+    if(file_exists($ib.'barangay-logo.png'))          $pdf->Image($ib.'barangay-logo.png',          $ml+$pw-$ls,  $y,$ls);
+
+    // Center text
+    $cx=$ml+$ls*2+3; $cw=$pw-$ls*4-6;
+    $pdf->SetTextColor(0,0,0);
+    $pdf->SetFont('Times','B',8);
+    $pdf->SetXY($cx,$y+1); $pdf->Cell($cw,3.5,'Republic of the Philippines',0,1,'C');
+    $pdf->SetX($cx);       $pdf->Cell($cw,3.5,'National Capital Region',0,1,'C');
+    $pdf->SetFont('Times','B',9);
+    $pdf->SetX($cx);       $pdf->Cell($cw,3.5,'City of Manila',0,1,'C');
+    $pdf->SetFont('Times','B',7.5);
+    $pdf->SetX($cx);       $pdf->Cell($cw,3.5,'TANGGAPAN NG PUNONG BARANGAY',0,1,'C');
+    $pdf->SetFont('Times','',7);
+    $pdf->SetX($cx);       $pdf->Cell($cw,3,'Barangay 410, Zone 42, District IV, Manila',0,1,'C');
+    $pdf->SetX($cx);       $pdf->Cell($cw,3,'230 M. F. Jhocson St. Sampaloc, Manila',0,1,'C');
+
+    // Separator
+    $sep_y = max($pdf->GetY(), $y+$ls)+1;
+    $pdf->SetDrawColor(0,0,0); $pdf->SetLineWidth(0.4);
+    $pdf->Line($ml,$sep_y,$ml+$pw,$sep_y);
+    $pdf->SetLineWidth(0.15); $pdf->Line($ml,$sep_y+1,$ml+$pw,$sep_y+1);
+    $y = $sep_y+3;
 
     $pdf->SetFont('Times', 'B', 9.5);
+    $pdf->SetTextColor(0,0,0);
     $pdf->SetXY($ml, $y);
     $pdf->Cell($pw, 4.5, 'OFFICE OF THE LUPONG TAGAPAMAYAPA', 0, 1, 'C');
     $y += 5;
 
-    $pdf->SetFont('Times', 'B', 15);
+    $pdf->SetFont('Times', 'B', 14);
     $pdf->SetXY($ml, $y);
     $pdf->Cell($pw, 7, 'NOTICE OF HEARING', 0, 1, 'C');
     $y += 7;
 
-    $pdf->SetFont('Times', 'B', 12);
+    $pdf->SetFont('Times', 'B', 11);
     $pdf->SetXY($ml, $y);
-    $pdf->Cell($pw, 6, '(MEDIATION PROCEEDINGS)', 0, 1, 'C');
-    $y += 20;
+    $pdf->Cell($pw, 5, '(MEDIATION PROCEEDINGS)', 0, 1, 'C');
+    $y += 10;
 
     // To:
     $pdf->SetFont('Times', '', 10);
@@ -170,6 +190,32 @@ function drawNoticeCopy(FPDF $pdf, float $startY,
  
 class NoticePDF extends FPDF {
     public string $exportedBy='', $exportedAt='';
+    public $extgstates=[];
+
+    function SetAlpha($alpha) {
+        foreach($this->extgstates as $i=>$v){
+            if(abs($v['ca']-$alpha)<0.001){$this->_out('/GS'.$i.' gs');return;}
+        }
+        $i=count($this->extgstates)+1;
+        $this->extgstates[$i]=['ca'=>$alpha,'n'=>0];
+        $this->_out('/GS'.$i.' gs');
+    }
+    function _putresourcedict(){
+        parent::_putresourcedict();
+        if(!empty($this->extgstates)){
+            $this->_put('/ExtGState <<');
+            foreach($this->extgstates as $k=>$v) $this->_put('/GS'.$k.' '.$v['n'].' 0 R');
+            $this->_put('>>');
+        }
+    }
+    function _putresources(){
+        foreach($this->extgstates as $k=>&$v){
+            $this->_newobj(); $v['n']=$this->n;
+            $this->_put('<</Type /ExtGState /ca '.$v['ca'].' /CA '.$v['ca'].' /BM /Normal>>');
+            $this->_put('endobj');
+        }
+        parent::_putresources();
+    }
 
     function RotatedText($x, $y, $txt, $angle) {
         $this->_out('q');
@@ -185,18 +231,12 @@ class NoticePDF extends FPDF {
     }
 
     function Header() {
-        $logos = [
-            __DIR__ . '/images/brgy410_logo.png',
-            __DIR__ . '/images/brgy410_logo.png',
-        ];
-        foreach ($logos as $logo) {
-            if (file_exists($logo)) {
-                $size = 90;
-                $x = ($this->GetPageWidth()  - $size) / 2;
-                $y = ($this->GetPageHeight() - $size) / 2;
-                $this->Image($logo, $x, $y, $size);
-                break;
-            }
+        $wm=dirname(__DIR__).'/images/Brgy410_seal.png';
+        if(file_exists($wm)){
+            $W=$this->GetPageWidth(); $H=$this->GetPageHeight(); $sz=90;
+            $this->_out('q'); $this->SetAlpha(0.07);
+            $this->Image($wm,($W-$sz)/2,($H-$sz)/2-10,$sz);
+            $this->_out('Q'); $this->SetAlpha(1);
         }
     }
 

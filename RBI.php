@@ -6,8 +6,9 @@ if (!isset($_SESSION['admin'])) {
     exit();
 }
 include 'role_helper.php';
-
 include 'Residents_DB.php';
+include 'signatory_helper.php';
+$_signatories = getSignatories($conn);
 
 // ── Head of Family filter ─────────────────────────────────────────────────────
 $selected_head = isset($_GET['head']) ? mysqli_real_escape_string($conn, $_GET['head']) : '';
@@ -152,14 +153,6 @@ $total_households = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(DISTINC
     }
     .nav-back:hover { background: rgba(255,255,255,0.1); color: #fff; }
 
-    /* PAGE HEADER */
-    .page-top {
-      background: var(--navy); padding: 1.75rem 2rem 1.5rem;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-    }
-    .page-top h1 { color: #fff; font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 800; }
-    .page-top p  { color: rgba(255,255,255,0.5); font-size: 13px; margin-top: 4px; }
-
     /* MAIN */
     main { padding: 1.75rem 2rem; max-width: 1200px; margin: 0 auto; }
 
@@ -262,61 +255,128 @@ $total_households = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(DISTINC
 
     /* PRINT STYLES */
     .print-digital-watermark { display: none !important; }
+    .print-signatories { display: none; }
+    .print-header { display: none; }
+    .print-seal-watermark { display: none; }
+
+    .print-header-text { text-align: center; flex: 1; }
+    .print-header-text p  { font-size: 10px; margin: 1px 0; color: #222; font-family: 'Times New Roman', serif; }
+    .print-header-text .brgy-name { font-size: 13px; font-weight: 700; font-family: 'Times New Roman', serif; }
+    .print-header-text .doc-title { font-size: 15px; font-weight: 700; margin-top: 6px; letter-spacing: 1.5px; font-family: 'Times New Roman', serif; text-transform: uppercase; }
+    .print-header-text .doc-sub   { font-size: 10px; color: #444; font-family: 'Times New Roman', serif; }
+
+    @page { size: A4 portrait; margin: 5mm 6mm; }
+
     @media print {
-      nav, .topbar, .sidebar, .sidebar-overlay, .page-hero, .toolbar, .btn { display: none !important; }
-      body { background: #fff; font-size: 11px; }
+      /* ── Hide all UI chrome ── */
+      nav, .topbar, .sidebar, .sidebar-overlay, .page-hero, .toolbar, .btn,
+      #settingsOverlay, #settingsDrawer, footer { display: none !important; }
+
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      body { background: #fff !important; font-size: 7px; color: #000; margin: 0; }
       main { padding: 0; max-width: 100%; }
-      .rbi-card { border: 1px solid #ccc; border-radius: 0; box-shadow: none; margin-bottom: 12px; }
-      .summary-row { margin-bottom: 12px; }
-      .two-col { gap: 10px; margin-bottom: 12px; }
 
+      /* ── Print header — compact single bar ── */
       .print-header {
-        display: block !important;
-        text-align: center;
-        margin-bottom: 16px;
-        border-bottom: 2px solid #000;
-        padding-bottom: 12px;
+        display: flex !important;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 5px;
+        padding: 4px 0 4px;
+        border-top: 2.5px solid #000;
+        border-bottom: 2.5px solid #000;
       }
+      .print-header-logo { width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; }
+      .print-header-text p { font-size: 7px !important; margin: 0 !important; }
+      .print-header-text .brgy-name { font-size: 9px !important; }
+      .print-header-text .doc-title { font-size: 10px !important; margin-top: 2px !important; letter-spacing: .5px !important; }
+      .print-header-text .doc-sub { font-size: 7px !important; }
 
+      /* ── Watermark ── */
       .print-seal-watermark {
         display: block !important;
         position: fixed;
         top: 50%; left: 50%;
         transform: translate(-50%, -50%);
-        width: 90mm; height: 90mm;
-        opacity: 0.15;
+        width: 60mm; height: 60mm;
+        opacity: 0.06;
         z-index: 0;
         pointer-events: none;
       }
 
+      /* ── Side watermark ── */
       .print-digital-watermark {
         display: flex !important;
         position: fixed;
-        left: 0; top: 0; bottom: 0;
-        width: 16mm;
+        left: 0; top: 0; bottom: 0; width: 6mm;
         align-items: center; justify-content: center;
-        overflow: visible;
-        pointer-events: none; z-index: 9999;
+        overflow: hidden; pointer-events: none; z-index: 9999;
       }
       .print-digital-watermark span {
-        writing-mode: vertical-rl;
-        transform: rotate(180deg);
-        font-size: 8mm;
-        font-weight: bold;
-        color: rgba(72, 72, 72, 0.69);
-        font-family: 'Times New Roman', Times, serif;
-        letter-spacing: .05em;
-        white-space: nowrap;
+        writing-mode: vertical-rl; transform: rotate(180deg);
+        font-size: 3.5mm; font-weight: bold;
+        color: rgba(60,60,60,.3);
+        font-family: 'Times New Roman', serif;
+        letter-spacing: .04em; white-space: nowrap;
       }
+
+      /* ── Layout: age bracket left, sector+civil right ── */
+      .print-body { display: flex !important; gap: 6px; align-items: flex-start; }
+      .print-col-left  { flex: 1.4; min-width: 0; }
+      .print-col-right { flex: 1; min-width: 0; }
+
+      /* ── Summary cards — single compact row ── */
+      .summary-row { margin-bottom: 5px; gap: 4px; }
+      .sum-card { padding: 3px 6px; border: 1px solid #999 !important; border-radius: 2px !important; background: #fff !important; }
+      .sum-num { font-size: 13px !important; }
+      .sum-lbl { font-size: 7px !important; }
+
+      /* ── Section titles ── */
+      .section-title {
+        font-size: 7px !important; font-weight: 700; color: #000 !important;
+        border-bottom: 1px solid #000; padding-bottom: 2px; margin-bottom: 3px;
+      }
+      .section-title::after { display: none; }
+
+      /* ── Tables ── */
+      .rbi-card {
+        border: 1px solid #aaa !important; border-radius: 0 !important;
+        box-shadow: none !important; margin-bottom: 5px !important;
+        break-inside: avoid; overflow: visible !important;
+      }
+      .two-col { gap: 5px; margin-bottom: 5px; }
+
+      .rbi-table th, .sector-table th {
+        background: #1a1a2e !important; color: #fff !important;
+        padding: 3px 4px !important; font-size: 7px !important;
+      }
+      .rbi-table td, .sector-table td {
+        padding: 2px 4px !important; font-size: 7px !important;
+        border-bottom: 1px solid #e5e5e5 !important;
+      }
+      .rbi-table .total-row td {
+        background: #dbeafe !important; font-weight: 700;
+        border-top: 1.5px solid #3b82f6 !important;
+      }
+      .rbi-table td.group-label {
+        background: #f1f5f9 !important;
+        padding: 2px 6px !important; font-size: 7px !important;
+      }
+
+      /* ── Sector table: hide bars, show number only ── */
+      .bar-wrap { display: none !important; }
+      .sector-table td:first-child { font-weight: 500; }
+
+      /* ── Signatories ── */
+      .print-signatories {
+        display: flex !important; justify-content: space-around;
+        margin-top: 10px; padding-top: 6px;
+        border-top: 1px dashed #aaa; page-break-inside: avoid;
+      }
+      .print-signatories > div { text-align: center; }
+      .print-signatories strong { font-size: 7.5px !important; }
+      .print-signatories span   { font-size: 7px !important; }
     }
-    .print-header { display: none; }
-    .print-seal-watermark { display: none; }
-    /* centered text-only header, like eBlotter PDF */
-    .print-header-text { text-align: center; }
-    .print-header-text p  { font-size: 10px; margin: 1px 0; color: #222; font-family: 'Times New Roman', serif; }
-    .print-header-text .brgy-name { font-size: 13px; font-weight: 700; font-family: 'Times New Roman', serif; }
-    .print-header-text .doc-title { font-size: 14px; font-weight: 700; margin-top: 6px; letter-spacing: 1px; font-family: 'Times New Roman', serif; }
-    .print-header-text .doc-sub   { font-size: 10px; color: #444; font-family: 'Times New Roman', serif; }
     .topbar{position:sticky;top:0;z-index:200}
   </style>
 </head>
@@ -327,7 +387,7 @@ $total_households = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(DISTINC
     <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0">
       <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
     </div>
-    <div><div class="topbar-name">Barangay 410</div><div class="topbar-sub">RBI Report</div></div></a>
+    <div><div class="topbar-name">Barangay 410</div></div></a>
   <div class="topbar-right" style="margin-left:auto">
     <div title="<?=$rbadge['label']?>" style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;<?php if($is_captain):?>background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.3);<?php elseif($is_secretary):?>background:rgba(59,130,246,.15);color:#93c5fd;border:1px solid rgba(59,130,246,.3);<?php else:?>background:rgba(148,163,184,.15);color:#94a3b8;border:1px solid rgba(148,163,184,.3);<?php endif;?>"><i class="fas <?=$rbadge['icon']?>" style="font-size:12px"></i></div>
     <button class="menu-toggle" id="menuToggle"><span></span><span></span><span></span></button>
@@ -365,46 +425,34 @@ $total_households = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(DISTINC
 $_rbi_brgy = defined('BRGY_NAME')     ? htmlspecialchars(BRGY_NAME)     : 'Barangay 410';
 $_rbi_city = defined('BRGY_CITY')     ? htmlspecialchars(BRGY_CITY)     : 'City of Manila';
 $_rbi_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
-$_btn_ghost = 'display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:8px;font-size:.82rem;font-weight:600;text-decoration:none;border:1.5px solid rgba(255,255,255,.35);color:#fff;background:rgba(255,255,255,.1);backdrop-filter:blur(4px)';
-$_btn_active = 'display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:8px;font-size:.82rem;font-weight:600;text-decoration:none;border:1.5px solid #3b82f6;color:#fff;background:#3b82f6';
 ?>
-<div class="page-hero" style="background:linear-gradient(to right,rgba(15,23,42,.9),rgba(15,23,42,.65)),url('images/Barangay_officials_410.png') center 60%/cover no-repeat;padding:2.5rem 2rem">
-  <div style="max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:1.5rem">
-  <div style="width:90px;height:90px;border-radius:50%;overflow:hidden;flex-shrink:0;border:2px solid rgba(255,255,255,.2)"><img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover"></div>
-  <div>
-    <h1 style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:#fff;margin:0 0 .25rem"><i class="fas fa-clipboard-list" style="margin-right:.5rem;opacity:.8"></i>RBI Report</h1>
-    <p style="color:rgba(255,255,255,.65);font-size:.84rem;margin:0 0 1.25rem"><?= $_rbi_brgy ?> Census Management &mdash; <?= $_rbi_city ?>, District <?= $_rbi_dist ?></p>
-    <div style="display:flex;gap:.6rem;flex-wrap:wrap">
-      <a href="Home.php" style="<?= $_btn_ghost ?>"><i class="fas fa-house"></i> Home</a>
-      <a href="Display_List.php" style="<?= $_btn_ghost ?>"><i class="fas fa-users"></i> Residents</a>
-      <a href="RBI.php" style="<?= $_btn_active ?>"><i class="fas fa-clipboard-list"></i> RBI Report</a>
-    </div>
-  </div></div>
-</div>
 
 <main>
   <!-- Seal watermark — centered on page like eBlotter PDF (print only) -->
   <img src="images/brgy410_logo.png" alt="" class="print-seal-watermark">
 
-  <!-- Print header — centered text only, no side logos (print only) -->
+  <!-- Print header (print only) -->
   <div class="print-header">
+    <img src="images/brgy410_logo.png" class="print-header-logo" alt="Barangay Logo">
     <div class="print-header-text">
-      <p>Republic of the Philippines</p>
-      <p><?= defined('BRGY_CITY') ? htmlspecialchars(BRGY_CITY) : 'City of Manila' ?></p>
+      <p style="font-size:9px">Republic of the Philippines</p>
+      <p style="font-size:9px"><?= defined('BRGY_CITY') ? htmlspecialchars(BRGY_CITY) : 'City of Manila' ?></p>
       <p class="brgy-name"><?= defined('BRGY_FULLNAME') ? htmlspecialchars(BRGY_FULLNAME) : 'Barangay 410 Zone 42' ?></p>
-      <p>District <?= defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV' ?></p>
-      <div class="doc-title">REGISTER OF BARANGAY INHABITANTS</div>
-      <div class="doc-sub">Official Census Report &nbsp;&middot;&nbsp; Printed: <?= date('F d, Y g:i A') ?></div>
-      <?php if ($selected_head): ?>
-      <div class="doc-sub">Head of Family: <?= htmlspecialchars($selected_head) ?></div>
-      <?php endif; ?>
+      <p style="font-size:9px">District <?= defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV' ?></p>
+      <div class="doc-title">Register of Barangay Inhabitants</div>
+      <div style="border-top:1px solid #555;border-bottom:1px solid #555;margin:4px auto;width:80%;padding:2px 0">
+        <div class="doc-sub" style="font-weight:600;font-size:10px">Official Census Report</div>
+      </div>
+      <div class="doc-sub">Printed: <?= date('F d, Y \a\t g:i A') ?><?= $selected_head ? ' &nbsp;·&nbsp; Head of Family: '.htmlspecialchars($selected_head) : ' &nbsp;·&nbsp; All Households' ?></div>
+      <div class="doc-sub" style="margin-top:2px">Total Inhabitants: <strong><?= $grand_total ?></strong> &nbsp;·&nbsp; Male: <strong><?= $total_male ?></strong> &nbsp;·&nbsp; Female: <strong><?= $total_female ?></strong> &nbsp;·&nbsp; Households: <strong><?= $total_households ?></strong></div>
     </div>
+    <img src="images/brgy410_logo.png" class="print-header-logo" alt="" style="opacity:.35">
   </div>
 
   <!-- TOOLBAR -->
   <div class="toolbar">
     <form method="GET" style="display:contents">
-      <select name="head" onchange="this.form.submit()">
+      <select name="head" onchange="this.form.submit()" style="flex:1">
         <option value="">All Households</option>
         <?php foreach ($heads as $h): ?>
           <option value="<?= htmlspecialchars($h) ?>" <?= $selected_head === $h ? 'selected' : '' ?>>
@@ -415,7 +463,6 @@ $_btn_active = 'display:inline-flex;align-items:center;gap:7px;padding:8px 18px;
     </form>
     <div class="ml-auto" style="display:flex;gap:10px">
       <a href="?" class="btn btn-outline"><i class="fas fa-rotate-left"></i> Reset</a>
-      <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Print RBI</button>
     </div>
   </div>
 
@@ -443,6 +490,8 @@ $_btn_active = 'display:inline-flex;align-items:center;gap:7px;padding:8px 18px;
     </div>
   </div>
 
+  <div class="print-body">
+  <div class="print-col-left">
   <!-- AGE BRACKET TABLE -->
   <div class="section-title">Age Bracket Category</div>
   <div class="rbi-card">
@@ -474,8 +523,10 @@ $_btn_active = 'display:inline-flex;align-items:center;gap:7px;padding:8px 18px;
     </table>
   </div>
 
-  <!-- SECTOR + CIVIL STATUS side by side -->
-  <div class="two-col">
+  </div><!-- end print-col-left -->
+  <div class="print-col-right">
+  <!-- SECTOR + CIVIL STATUS -->
+  <div class="two-col" style="display:block">
 
     <!-- BY SECTOR -->
     <div>
@@ -541,14 +592,44 @@ $_btn_active = 'display:inline-flex;align-items:center;gap:7px;padding:8px 18px;
     </div>
 
   </div>
+  </div><!-- end print-col-right -->
+  </div><!-- end print-body -->
 
   <!-- FOOTER NOTE -->
   <p style="font-size:11px;color:var(--muted);text-align:center;padding:1rem 0">
     &copy; <?= date('Y') ?> Barangay 410 Census Management System &nbsp;·&nbsp; Manila City &nbsp;·&nbsp;
     Report generated on <?= date('F d, Y \a\t g:i A') ?>
   </p>
+
+  <!-- SIGNATORIES (print only) -->
+  <div class="print-signatories">
+    <?php
+      $sig_captain   = $_signatories['captain']   ?? [];
+      $sig_secretary = $_signatories['secretary'] ?? [];
+      $cap_name = strtoupper(trim($sig_captain['full_name']   ?? '')) ?: 'PUNONG BARANGAY';
+      $cap_title=              trim($sig_captain['title']      ?? '') ?: 'Punong Barangay';
+      $sec_name = strtoupper(trim($sig_secretary['full_name'] ?? '')) ?: 'BARANGAY SECRETARY';
+      $sec_title=              trim($sig_secretary['title']   ?? '') ?: 'Barangay Secretary';
+    ?>
+    <div style="text-align:center;">
+      <div style="height:40px;"></div>
+      <div style="border-top:1.5px solid #000;width:220px;margin:0 auto;padding-top:5px;">
+        <strong style="font-size:10px;text-transform:uppercase;display:block;"><?= htmlspecialchars($cap_name) ?></strong>
+        <span style="font-size:9px;"><?= htmlspecialchars($cap_title) ?></span>
+      </div>
+    </div>
+    <div style="text-align:center;">
+      <div style="height:40px;"></div>
+      <div style="border-top:1.5px solid #000;width:220px;margin:0 auto;padding-top:5px;">
+        <strong style="font-size:10px;text-transform:uppercase;display:block;"><?= htmlspecialchars($sec_name) ?></strong>
+        <span style="font-size:9px;"><?= htmlspecialchars($sec_title) ?></span>
+        <span style="font-size:9px;display:block;color:#555">Certified Correct</span>
+      </div>
+    </div>
+  </div>
 </main>
 <script>
+function printRBI(){closeSettings();setTimeout(()=>window.print(),350);}
 function openSettings(){document.getElementById('settingsOverlay').style.display='block';document.getElementById('settingsDrawer').style.right='0';document.body.style.overflow='hidden';if(typeof closeSidebar==='function')closeSidebar();}
 function closeSettings(){document.getElementById('settingsOverlay').style.display='none';document.getElementById('settingsDrawer').style.right='-360px';document.body.style.overflow='';}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSettings();});
@@ -582,10 +663,14 @@ document.getElementById('menuToggle').addEventListener('click',openSidebar);
       <button id="darkToggle" onclick="toggleDarkMode()" style="width:42px;height:24px;border-radius:12px;background:#475569;border:none;cursor:pointer;position:relative;transition:background .25s;flex-shrink:0"><span id="darkThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;transition:left .25s"></span></button>
     </div>
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Actions</div>
-    <button onclick="window.print()" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer">
+    <button onclick="printRBI()" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer">
       <div style="width:30px;height:30px;background:rgba(255,255,255,.08);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-print" style="color:#94a3b8;font-size:13px"></i></div>
-      <div style="text-align:left"><div style="font-size:13px;font-weight:600;color:#fff">Print Page</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Print current view</div></div>
+      <div style="text-align:left"><div style="font-size:13px;font-weight:600;color:#fff">Print RBI</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Print the RBI document</div></div>
     </button>
+    <a href="signatory_settings.php" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;text-decoration:none">
+      <div style="width:30px;height:30px;background:rgba(139,92,246,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-pen-nib" style="color:#a78bfa;font-size:13px"></i></div>
+      <div style="text-align:left"><div style="font-size:13px;font-weight:600;color:#fff">Signatory Settings</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Edit names on printed documents</div></div>
+    </a>
   </div>
   <div style="padding:14px 16px;border-top:1px solid rgba(255,255,255,.07)">
     <a href="logout.php" style="display:flex;align-items:center;gap:10px;background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.25);border-radius:10px;padding:12px 14px;text-decoration:none">

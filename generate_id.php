@@ -1,14 +1,12 @@
 <?php
 /**
  * ProjectRBI Resident ID System
- * Format: 04{MMDD}-10{YYYY}-01{NNN}
- * 04   = fixed district prefix (Barangay 410 → "04")
- * MMDD = month+day of registration  (e.g. 0504 for May 4)
- * 10   = fixed barangay suffix code (Barangay 410 → "10")
- * YYYY = 4-digit registration year  (e.g. 2026)
- * 01   = fixed batch prefix
- * NNN  = 3-digit daily counter 001–999
- * Example: 040504-102026-01001 = first registrant on May 4, 2026
+ * Format: 04-MMYY-1NNN-00  (12 digits, displayed with dashes)
+ * 04   = fixed barangay prefix (Barangay 410)
+ * MMYY = 2-digit month + 2-digit year of registration (e.g. 0526 = May 2026)
+ * 1NNN = fixed "1" + 3-digit sequential counter (001–999)
+ * 00   = fixed suffix
+ * Example: 04-0526-1001-00 = first registrant in May 2026
  */
 
 function residentCodeColumnExists($conn) {
@@ -25,27 +23,23 @@ function ensureResidentCodeColumn($conn) {
 
 function generateResidentCode($conn) {
     ensureResidentCodeColumn($conn);
-    $mmdd = date('md');          // e.g. 0504
-    $yyyy = date('Y');           // e.g. 2026
-    // Segment 1: 04 + MMDD  →  040504
-    // Segment 2: 10 + YYYY  →  102026
-    // Segment 3: 01 + NNN   →  01001
-    $seg1   = '04' . $mmdd;
-    $seg2   = '10' . $yyyy;
-    $prefix = $seg1 . '-' . $seg2 . '-01';   // e.g. 040504-102026-01
+    $mmyy   = date('my');        // e.g. 0526 for May 2026
+    $prefix = '04-' . $mmyy . '-1';
     $esc    = mysqli_real_escape_string($conn, $prefix);
     $r      = mysqli_query($conn, "SELECT COUNT(*) AS c FROM residents WHERE resident_code LIKE '{$esc}%'");
     $seq    = $r ? (int)mysqli_fetch_assoc($r)['c'] + 1 : 1;
-    return $prefix . str_pad($seq, 3, '0', STR_PAD_LEFT);
-    // Result: 040504-102026-01001
+    return $prefix . str_pad($seq, 3, '0', STR_PAD_LEFT) . '-00';
+    // Result: 04-0526-1001-00
 }
 
 function isValidResidentCode($code) {
-    // Current format: 04MMDD-10YYYY-01NNN  (e.g. 040504-102026-01001)
+    // Current format: 04-MMYY-1NNN-00  (e.g. 04-0526-1001-00)
+    if (preg_match('/^04-\d{4}-1\d{3}-00$/', $code)) return true;
+    // Previous format: 04MMDD-10YYYY-01NNN
     if (preg_match('/^04\d{4}-10\d{4}-01\d{3}$/', $code)) return true;
-    // Previous format: YY-MMDD-NNN  (e.g. 26-0504-001)
+    // Older format: YY-MMDD-NNN
     if (preg_match('/^\d{2}-\d{4}-\d{3}$/', $code)) return true;
-    // Legacy format: 14-digit MMDDYYYYSSSSSS
+    // Legacy: 14-digit
     if (preg_match('/^\d{14}$/', $code)) return true;
     return false;
 }

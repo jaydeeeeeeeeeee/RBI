@@ -1,22 +1,49 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) session_start();
+if (!isset($_SESSION['admin'])) { header('Location: admin.php'); exit(); }
 include 'Residents_DB.php';
 include 'csrf_helper.php';
 include 'generate_id.php';
+include 'role_helper.php';
+
+// Must have unlocked the resident list (password gate) and IP must match
+$ip = $_SERVER['REMOTE_ADDR'];
+$list_unlocked = isset($_SESSION['list_unlocked'])
+    && isset($_SESSION['list_unlock_time'])
+    && (time() - $_SESSION['list_unlock_time']) < 1800
+    && ($_SESSION['list_unlock_ip'] ?? '') === $ip;
+
+if (!$list_unlocked) {
+    header('Location: Display_List.php');
+    exit();
+}
 
 function normalize($string) {
     return strtolower(preg_replace('/[^a-z]/', '', $string));
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: Home.php');
+    header('Location: Display_List.php');
     exit();
 }
 
 csrf_verify();
 
 if (!is_uploaded_file($_FILES['csv_file']['tmp_name'] ?? '')) {
-    header('Location: Home.php?import=error&reason=nofile');
+    header('Location: Display_List.php?import=error&reason=nofile');
+    exit();
+}
+
+// Validate file extension
+$orig_name = $_FILES['csv_file']['name'] ?? '';
+if (strtolower(pathinfo($orig_name, PATHINFO_EXTENSION)) !== 'csv') {
+    header('Location: Display_List.php?import=error&reason=wrongtype');
+    exit();
+}
+
+// Validate file size (max 5 MB)
+if ($_FILES['csv_file']['size'] > 5 * 1024 * 1024) {
+    header('Location: Display_List.php?import=error&reason=toobig');
     exit();
 }
 
@@ -49,10 +76,18 @@ function esc($conn, $val) {
 ensureResidentCodeColumn($conn);
 
 $imported = 0;
+$failed   = 0;
+$row_num  = 1; // starts at 1 (after header)
 
 while (($data = fgetcsv($handle, 10000, ',')) !== false) {
+    $row_num++;
     // Skip completely empty rows
     if (empty(array_filter($data, fn($v) => trim($v) !== ''))) continue;
+
+    // Require at least first name and last name
+    $fn_check = col('firstname', $headers, $data);
+    $ln_check = col('lastname',  $headers, $data);
+    if (empty(trim($fn_check)) && empty(trim($ln_check))) { $failed++; continue; }
 
     $firstname         = esc($conn, col('firstname',         $headers, $data));
     $middlename        = esc($conn, col('middlename',        $headers, $data));
@@ -150,7 +185,7 @@ while (($data = fgetcsv($handle, 10000, ',')) !== false) {
         '$soloparentstatus','$soloparentid',$has_pets,'$res_code'
     )";
 
-    if (!mysqli_query($conn, $sql)) continue;
+    if (!mysqli_query($conn, $sql)) { $failed++; continue; }
 
     $resident_id = mysqli_insert_id($conn);
     $imported++;
@@ -199,7 +234,12 @@ if ($cols) {
     $dupes = false;
 }
 
-$url = 'Display_List.php?import=success&count=' . $imported;
+if ($imported === 0 && $failed > 0) {
+    header('Location: Display_List.php?import=error&reason=allskipped&failed=' . $failed);
+    exit();
+}
+
+$url = 'Display_List.php?import=success&count=' . $imported . '&failed=' . $failed;
 if ($dupes) $url .= '&duplicates_removed=true';
 header('Location: ' . $url);
 exit();

@@ -6,100 +6,125 @@
  */
 
 // ─── Lockout after setup is done ────────────────────────────────────────────
-// Uncomment the next 3 lines once setup is complete to prevent re-running:
-// if (file_exists(__DIR__.'/install.lock')) {
-//     die('<h2>Setup already completed. Delete install.lock to re-run.</h2>');
-// }
+if (file_exists(__DIR__.'/install.lock')) {
+    die('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Setup Locked</title>
+    <style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#0f172a}
+    .box{background:#fff;border-radius:16px;padding:2.5rem;text-align:center;max-width:420px}
+    h2{color:#0f172a;margin-bottom:.5rem}p{color:#64748b;font-size:.9rem}
+    a{display:inline-block;margin-top:1rem;padding:10px 20px;background:#3b82f6;color:#fff;border-radius:8px;text-decoration:none;font-weight:600}</style>
+    </head><body><div class="box">
+    <div style="font-size:3rem;margin-bottom:1rem">🔒</div>
+    <h2>Setup Already Completed</h2>
+    <p>Delete <code>install.lock</code> from the project folder only if you need to re-run setup.</p>
+    <a href="admin.php">Go to Login</a>
+    </div></body></html>');
+}
 
 session_start();
 
-$step    = (int)($_GET['step'] ?? 1);
-$errors  = [];
-$success = '';
+$step   = (int)($_GET['step'] ?? 1);
+$errors = [];
 
-// ─── Step 3: Write config + test DB ─────────────────────────────────────────
+// ─── POST Handlers ───────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
+    // Step 1 — Barangay Info
     if ($_POST['action'] === 'save_brgy') {
         $_SESSION['setup']['brgy_number']   = trim($_POST['brgy_number']   ?? '');
         $_SESSION['setup']['brgy_name']     = trim($_POST['brgy_name']     ?? '');
+        $_SESSION['setup']['brgy_zone']     = trim($_POST['brgy_zone']     ?? '');
         $_SESSION['setup']['brgy_city']     = trim($_POST['brgy_city']     ?? '');
         $_SESSION['setup']['brgy_district'] = trim($_POST['brgy_district'] ?? '');
         $_SESSION['setup']['brgy_province'] = trim($_POST['brgy_province'] ?? '');
-        $_SESSION['setup']['signer_name']   = strtoupper(trim($_POST['signer_name'] ?? ''));
-        header('Location: install.php?step=2');
-        exit();
+        $_SESSION['setup']['brgy_lat']      = trim($_POST['brgy_lat']      ?? '');
+        $_SESSION['setup']['brgy_lng']      = trim($_POST['brgy_lng']      ?? '');
+        header('Location: install.php?step=2'); exit();
     }
 
+    // Step 2 — Database
     if ($_POST['action'] === 'save_db') {
         $db_host = trim($_POST['db_host'] ?? 'localhost');
+        $db_port = (int)($_POST['db_port'] ?? 3306);
         $db_user = trim($_POST['db_user'] ?? 'root');
         $db_pass = trim($_POST['db_pass'] ?? '');
         $db_name = trim($_POST['db_name'] ?? 'projectrbi');
 
-        // Test connection (port 3307 = bundled MariaDB)
-        $test = @new mysqli($db_host, $db_user, $db_pass, '', 3307);
+        $test = @new mysqli($db_host, $db_user, $db_pass, '', $db_port);
         if ($test->connect_error) {
             $errors[] = "Database connection failed: " . htmlspecialchars($test->connect_error);
+            $step = 2;
         } else {
+            $test->close();
             $_SESSION['setup']['db_host'] = $db_host;
+            $_SESSION['setup']['db_port'] = $db_port;
             $_SESSION['setup']['db_user'] = $db_user;
             $_SESSION['setup']['db_pass'] = $db_pass;
             $_SESSION['setup']['db_name'] = $db_name;
-            header('Location: install.php?step=3');
-            exit();
+            header('Location: install.php?step=3'); exit();
         }
     }
 
+    // Step 3 — Admin Account
     if ($_POST['action'] === 'save_admin') {
         $admin_user  = trim($_POST['admin_user']  ?? '');
         $admin_pass  = trim($_POST['admin_pass']  ?? '');
         $admin_pass2 = trim($_POST['admin_pass2'] ?? '');
         $admin_name  = trim($_POST['admin_name']  ?? '');
 
-        if (empty($admin_user))             $errors[] = "Username is required.";
-        if (strlen($admin_pass) < 6)        $errors[] = "Password must be at least 6 characters.";
-        if ($admin_pass !== $admin_pass2)   $errors[] = "Passwords do not match.";
+        if (empty($admin_user))           $errors[] = "Username is required.";
+        if (strlen($admin_pass) < 6)      $errors[] = "Password must be at least 6 characters.";
+        if ($admin_pass !== $admin_pass2) $errors[] = "Passwords do not match.";
 
         if (empty($errors)) {
             $s = $_SESSION['setup'];
-
-            // Build config file content
-            $brgy_number  = addslashes($s['brgy_number']   ?? '410');
-            $brgy_name    = addslashes($s['brgy_name']     ?? 'Barangay 410');
-            $brgy_city    = addslashes($s['brgy_city']     ?? 'Manila');
-            $brgy_district= addslashes($s['brgy_district'] ?? '1st District');
-            $brgy_province= addslashes($s['brgy_province'] ?? 'Metro Manila');
-            $signer_name  = addslashes($s['signer_name']   ?? '');
-            $db_host      = addslashes($s['db_host']       ?? 'localhost');
-            $db_user_c    = addslashes($s['db_user']       ?? 'root');
-            $db_pass_c    = addslashes($s['db_pass']       ?? '');
-            $db_name_c    = addslashes($s['db_name']       ?? 'projectrbi');
+            $bn  = addslashes($s['brgy_number']   ?? '');
+            $bnm = addslashes($s['brgy_name']     ?? '');
+            $bz  = addslashes($s['brgy_zone']     ?? '');
+            $bc  = addslashes($s['brgy_city']     ?? '');
+            $bd  = addslashes($s['brgy_district'] ?? '');
+            $bp  = addslashes($s['brgy_province'] ?? '');
+            $lat = addslashes($s['brgy_lat']      ?? '14.5958');
+            $lng = addslashes($s['brgy_lng']      ?? '120.9772');
+            $dh  = addslashes($s['db_host']       ?? 'localhost');
+            $dp  = (int)($s['db_port']            ?? 3306);
+            $du  = addslashes($s['db_user']       ?? 'root');
+            $dw  = addslashes($s['db_pass']       ?? '');
+            $dn  = addslashes($s['db_name']       ?? 'projectrbi');
 
             $config_content = <<<PHP
 <?php
 /**
  * ProjectRBI – Master Configuration
- * Generated by setup wizard on {$_SERVER['REQUEST_TIME']}.
+ * Generated by setup wizard on <?= date('Y-m-d H:i:s') ?>.
+ * DO NOT expose this file publicly.
  */
+if (!defined('DB_HOST') && basename(\$_SERVER['SCRIPT_FILENAME'] ?? '') === 'config.php') {
+    http_response_code(403); exit('Access denied.');
+}
 
 // ── Barangay Identity ─────────────────────────────────────────────────────────
-define('BRGY_NUMBER',   '$brgy_number');
-define('BRGY_NAME',     '$brgy_name');
-define('BRGY_CITY',     '$brgy_city');
-define('BRGY_DISTRICT', '$brgy_district');
-define('BRGY_PROVINCE', '$brgy_province');
+define('BRGY_NUMBER',   '$bn');
+define('BRGY_NAME',     '$bnm');
+define('BRGY_ZONE',     '$bz');
+define('BRGY_FULLNAME', '$bnm' . ($bz ? ' ' . '$bz' : ''));
+define('BRGY_CITY',     '$bc');
+define('BRGY_DISTRICT', '$bd');
+define('BRGY_PROVINCE', '$bp');
+
+// ── Map Coordinates ───────────────────────────────────────────────────────────
+define('BRGY_LAT', $lat);
+define('BRGY_LNG', $lng);
 
 // ── E-Blotter ─────────────────────────────────────────────────────────────────
-define('BLOTTER_CASE_PREFIX',   'BRGY $brgy_number');
-define('BLOTTER_DEFAULT_SIGNER','$signer_name');
+define('BLOTTER_CASE_PREFIX',   'BRGY $bn');
+define('BLOTTER_DEFAULT_SIGNER','');
 
 // ── Database ──────────────────────────────────────────────────────────────────
-define('DB_HOST', '$db_host');
-define('DB_PORT', 3307);
-define('DB_USER', '$db_user_c');
-define('DB_PASS', '$db_pass_c');
-define('DB_NAME', '$db_name_c');
+define('DB_HOST', '$dh');
+define('DB_PORT', $dp);
+define('DB_USER', '$du');
+define('DB_PASS', '$dw');
+define('DB_NAME', '$dn');
 
 // ── App Appearance ────────────────────────────────────────────────────────────
 define('APP_THEME_COLOR', '#0f172a');
@@ -108,61 +133,324 @@ define('APP_THEME_COLOR', '#0f172a');
 define('BRGY_FULL_ADDRESS', BRGY_NAME . ', ' . BRGY_CITY . ', ' . BRGY_PROVINCE);
 PHP;
 
-            // Write config.php
+            // Replace the heredoc placeholder with actual date
+            $config_content = str_replace('<?= date(\'Y-m-d H:i:s\') ?>', date('Y-m-d H:i:s'), $config_content);
+
             $config_path = __DIR__ . '/config.php';
             if (file_put_contents($config_path, $config_content) === false) {
                 $errors[] = "Could not write config.php — check folder permissions.";
+                $step = 3;
             } else {
-                // Connect and create DB + admin account
-                $conn = new mysqli(
-                    $s['db_host'] ?? 'localhost',
-                    $s['db_user'] ?? 'root',
-                    $s['db_pass'] ?? '',
-                    '',
-                    3307
-                );
+                $conn = new mysqli($s['db_host'], $s['db_user'], $s['db_pass'], '', (int)($s['db_port'] ?? 3306));
                 if ($conn->connect_error) {
                     $errors[] = "DB connection failed: " . htmlspecialchars($conn->connect_error);
+                    $step = 3;
                 } else {
                     $conn->query("CREATE DATABASE IF NOT EXISTS `" . $conn->real_escape_string($s['db_name']) . "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
                     $conn->select_db($s['db_name']);
+                    $conn->set_charset('utf8mb4');
 
-                    // Create admins table if it doesn't exist
-                    $conn->query("CREATE TABLE IF NOT EXISTS admins (
-                        id INT AUTO_INCREMENT PRIMARY KEY,
-                        username VARCHAR(100) NOT NULL UNIQUE,
-                        password VARCHAR(255) NOT NULL,
-                        full_name VARCHAR(150) DEFAULT NULL,
-                        role ENUM('captain','secretary','guest') NOT NULL DEFAULT 'secretary',
-                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                    // ── Full schema ───────────────────────────────────────────
+                    $schema = <<<SQL
+CREATE TABLE IF NOT EXISTS admins (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    full_name VARCHAR(150) DEFAULT NULL,
+    role ENUM('captain','secretary','guest') NOT NULL DEFAULT 'secretary',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS residents (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(100) NOT NULL,
+    middle_name VARCHAR(100) DEFAULT '',
+    last_name VARCHAR(100) NOT NULL,
+    suffix VARCHAR(20) DEFAULT '',
+    head_of_family VARCHAR(10) DEFAULT 'Yes',
+    head_first_name VARCHAR(100) DEFAULT '',
+    head_middle_name VARCHAR(100) DEFAULT '',
+    head_last_name VARCHAR(100) DEFAULT '',
+    head_suffix VARCHAR(20) DEFAULT '',
+    perm_address TEXT DEFAULT NULL,
+    mobile VARCHAR(30) DEFAULT '',
+    birthdate DATE DEFAULT NULL,
+    gender VARCHAR(20) DEFAULT '',
+    marital_status VARCHAR(30) DEFAULT 'Single',
+    religion VARCHAR(60) DEFAULT '',
+    citizenship VARCHAR(60) DEFAULT 'Filipino',
+    employment_status VARCHAR(60) DEFAULT '',
+    voter VARCHAR(10) DEFAULT 'No',
+    is_senior VARCHAR(10) DEFAULT 'No',
+    pwd_status VARCHAR(10) DEFAULT 'No',
+    solo_parent_status VARCHAR(10) DEFAULT 'No',
+    solo_parent_id VARCHAR(60) DEFAULT '',
+    out_of_school_youth VARCHAR(10) DEFAULT '',
+    years_in_barangay INT DEFAULT 0,
+    has_pets TINYINT(1) DEFAULT 0,
+    resident_code VARCHAR(25) DEFAULT NULL,
+    family_code VARCHAR(25) DEFAULT NULL,
+    latitude DECIMAL(10,7) DEFAULT NULL,
+    longitude DECIMAL(10,7) DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS pets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    resident_id INT NOT NULL,
+    pet_name VARCHAR(100) DEFAULT '',
+    species VARCHAR(60) DEFAULT '',
+    breed VARCHAR(100) DEFAULT '',
+    color VARCHAR(60) DEFAULT '',
+    vaccinated VARCHAR(10) DEFAULT 'No',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (resident_id) REFERENCES residents(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS senior_citizens (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    last_name VARCHAR(100) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    middle_name VARCHAR(100) DEFAULT '',
+    gender VARCHAR(20) DEFAULT '',
+    birth_month INT DEFAULT NULL,
+    birth_day INT DEFAULT NULL,
+    birth_year INT DEFAULT NULL,
+    address TEXT DEFAULT NULL,
+    contact_number VARCHAR(30) DEFAULT '',
+    status VARCHAR(30) DEFAULT 'Active',
+    benefits TEXT DEFAULT NULL,
+    added_by VARCHAR(150) DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    action VARCHAR(50) NOT NULL,
+    record_id INT DEFAULT NULL,
+    resident_name VARCHAR(200) DEFAULT '',
+    performed_by VARCHAR(150) DEFAULT '',
+    ip_address VARCHAR(45) DEFAULT '',
+    notes TEXT DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS access_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    event_type VARCHAR(100) NOT NULL,
+    detail TEXT,
+    performed_by VARCHAR(100) DEFAULT '',
+    ip_address VARCHAR(45) DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS activity_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT DEFAULT NULL,
+    username VARCHAR(100) DEFAULT '',
+    action VARCHAR(255) NOT NULL,
+    module VARCHAR(100) DEFAULT '',
+    ip_address VARCHAR(45) DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS failed_attempts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    ip_address VARCHAR(45) NOT NULL,
+    username VARCHAR(100) DEFAULT '',
+    attempted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_ip (ip_address)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS login_attempts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    ip_address VARCHAR(45) NOT NULL UNIQUE,
+    attempts INT DEFAULT 0,
+    last_attempt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    locked_until DATETIME DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS password_reset_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    admin_id INT NOT NULL,
+    token VARCHAR(100) NOT NULL UNIQUE,
+    expires_at DATETIME NOT NULL,
+    used TINYINT(1) DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS barangay_officials (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    role_key VARCHAR(60) NOT NULL UNIQUE,
+    role_label VARCHAR(120) NOT NULL,
+    full_name VARCHAR(200) NOT NULL DEFAULT '',
+    title VARCHAR(200) NOT NULL DEFAULT '',
+    sort_order INT NOT NULL DEFAULT 0,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS eb_signer_settings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    signer_name VARCHAR(200) NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS blotter_cases (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    case_id VARCHAR(50) NOT NULL UNIQUE,
+    complainant_first VARCHAR(100) DEFAULT '',
+    complainant_middle VARCHAR(100) DEFAULT '',
+    complainant_last VARCHAR(100) DEFAULT '',
+    complainant_address TEXT DEFAULT NULL,
+    complainant_contact VARCHAR(30) DEFAULT '',
+    respondent_first VARCHAR(100) DEFAULT '',
+    respondent_middle VARCHAR(100) DEFAULT '',
+    respondent_last VARCHAR(100) DEFAULT '',
+    respondent_address TEXT DEFAULT NULL,
+    respondent_contact VARCHAR(30) DEFAULT '',
+    incident_type VARCHAR(150) DEFAULT '',
+    incident_date DATE DEFAULT NULL,
+    incident_place TEXT DEFAULT NULL,
+    narrative TEXT DEFAULT NULL,
+    status VARCHAR(30) DEFAULT 'Pending',
+    mediation_done TINYINT(1) DEFAULT 0,
+    filed_by VARCHAR(150) DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS case_summons (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    case_id VARCHAR(50) NOT NULL,
+    hearing_date DATE DEFAULT NULL,
+    hearing_time VARCHAR(20) DEFAULT '',
+    issued_by VARCHAR(150) DEFAULT '',
+    issued_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS case_notice (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    case_id VARCHAR(50) NOT NULL,
+    notice_text TEXT DEFAULT NULL,
+    issued_by VARCHAR(150) DEFAULT '',
+    issued_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS case_mediation (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    case_id VARCHAR(50) NOT NULL UNIQUE,
+    agreement_text TEXT DEFAULT NULL,
+    saved_by VARCHAR(150) DEFAULT '',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS eb_audit_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    action VARCHAR(100) NOT NULL,
+    case_id VARCHAR(50) DEFAULT '',
+    detail TEXT DEFAULT NULL,
+    performed_by VARCHAR(150) DEFAULT '',
+    ip_address VARCHAR(45) DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS eb_case_sequence (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    prefix VARCHAR(30) NOT NULL UNIQUE,
+    last_seq INT NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS equipment (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    description TEXT DEFAULT NULL,
+    quantity INT DEFAULT 0,
+    condition_status VARCHAR(50) DEFAULT 'Good',
+    location VARCHAR(150) DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS equipment_borrowing (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    equipment_id INT NOT NULL,
+    borrower_name VARCHAR(150) NOT NULL,
+    borrower_contact VARCHAR(30) DEFAULT '',
+    purpose TEXT DEFAULT NULL,
+    borrow_date DATE DEFAULT NULL,
+    return_date DATE DEFAULT NULL,
+    returned_at DATETIME DEFAULT NULL,
+    status VARCHAR(30) DEFAULT 'Borrowed',
+    recorded_by VARCHAR(150) DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS certificate_templates (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(60) NOT NULL UNIQUE,
+    name VARCHAR(150) NOT NULL,
+    content TEXT DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS certificate_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    resident_id INT DEFAULT NULL,
+    cert_type VARCHAR(100) DEFAULT '',
+    purpose TEXT DEFAULT NULL,
+    status VARCHAR(30) DEFAULT 'Pending',
+    requested_by VARCHAR(150) DEFAULT '',
+    processed_by VARCHAR(150) DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS document_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    resident_name VARCHAR(200) DEFAULT '',
+    document_type VARCHAR(100) DEFAULT '',
+    purpose TEXT DEFAULT NULL,
+    status VARCHAR(30) DEFAULT 'Pending',
+    requested_by VARCHAR(150) DEFAULT '',
+    processed_by VARCHAR(150) DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS settings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    setting_key VARCHAR(100) NOT NULL UNIQUE,
+    setting_value TEXT DEFAULT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+SQL;
+
+                    foreach (array_filter(array_map('trim', explode(';', $schema))) as $q) {
+                        if ($q) $conn->query($q);
+                    }
+
+                    // Seed required rows
+                    $conn->query("INSERT IGNORE INTO barangay_officials (role_key, role_label, full_name, title, sort_order) VALUES
+                        ('captain',   'Punong Barangay',   '', 'Punong Barangay',   1),
+                        ('secretary', 'Barangay Secretary','', 'Barangay Secretary', 2)");
+                    $conn->query("INSERT IGNORE INTO eb_signer_settings (id, signer_name) VALUES (1, '')");
+
+                    // Create admin account
                     $hashed = password_hash($admin_pass, PASSWORD_DEFAULT);
-                    $stmt = $conn->prepare("INSERT INTO admins (username, password, full_name, role) VALUES (?, ?, ?, 'captain') ON DUPLICATE KEY UPDATE password=?, full_name=?");
-                    $stmt->bind_param('sssss', $admin_user, $hashed, $admin_name, $hashed, $admin_name);
+                    $stmt = $conn->prepare("INSERT INTO admins (username, password, full_name, role) VALUES (?, ?, ?, 'captain') ON DUPLICATE KEY UPDATE password=VALUES(password), full_name=VALUES(full_name)");
+                    $stmt->bind_param('sss', $admin_user, $hashed, $admin_name);
                     $stmt->execute();
                     $stmt->close();
                     $conn->close();
 
-                    // Create lock file
                     file_put_contents(__DIR__ . '/install.lock', date('Y-m-d H:i:s'));
-
-                    header('Location: install.php?step=4');
-                    exit();
+                    header('Location: install.php?step=4'); exit();
                 }
             }
         }
-        $step = 3;
+        if (!empty($errors)) $step = 3;
     }
 }
 
-// ─── Redirect to step 2 if step 1 not filled ────────────────────────────────
-if ($step === 2 && empty($_SESSION['setup']['brgy_number'])) {
-    header('Location: install.php?step=1'); exit();
-}
-if ($step === 3 && empty($_SESSION['setup']['db_host'])) {
-    header('Location: install.php?step=2'); exit();
-}
+// ─── Guard steps ─────────────────────────────────────────────────────────────
+if ($step === 2 && empty($_SESSION['setup']['brgy_number'])) { header('Location: install.php?step=1'); exit(); }
+if ($step === 3 && empty($_SESSION['setup']['db_host']))     { header('Location: install.php?step=2'); exit(); }
 
 $s = $_SESSION['setup'] ?? [];
 ?>
@@ -177,7 +465,7 @@ $s = $_SESSION['setup'] ?? [];
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem}
-.wizard{background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.35);max-width:600px;width:100%;overflow:hidden}
+.wizard{background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.35);max-width:620px;width:100%;overflow:hidden}
 .wizard-head{background:linear-gradient(135deg,#0f172a,#1e3a5f);padding:2rem 2rem 1.5rem;text-align:center}
 .wizard-logo{font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;color:#fff;margin-bottom:.25rem}
 .wizard-sub{font-size:.8rem;color:rgba(255,255,255,.5);letter-spacing:.1em;text-transform:uppercase}
@@ -194,49 +482,44 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,#0f172a 0%
 h2{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;color:#0f172a;margin-bottom:.25rem}
 .desc{font-size:.8rem;color:#64748b;margin-bottom:1.5rem}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem}
 .form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:1rem}
 label{font-size:.78rem;font-weight:600;color:#374151}
-input,select{padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:.85rem;font-family:inherit;color:#0f172a;transition:.15s;outline:none}
+input,select{padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:9px;font-size:.85rem;font-family:inherit;color:#0f172a;transition:.15s;outline:none;width:100%}
 input:focus,select:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.12)}
 .hint{font-size:.72rem;color:#94a3b8}
 .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:10px;font-size:.875rem;font-weight:600;cursor:pointer;border:none;transition:.15s}
 .btn-primary{background:#3b82f6;color:#fff}
 .btn-primary:hover{background:#2563eb}
-.btn-secondary{background:#f1f5f9;color:#374151}
+.btn-secondary{background:#f1f5f9;color:#374151;text-decoration:none}
 .btn-secondary:hover{background:#e2e8f0}
 .form-actions{display:flex;justify-content:flex-end;gap:.75rem;margin-top:.5rem}
 .alert{padding:10px 14px;border-radius:9px;font-size:.82rem;margin-bottom:1.25rem}
 .alert-error{background:#fff1f2;border:1px solid #fecdd3;color:#be123c}
-.alert-success{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d}
 .done-icon{width:80px;height:80px;background:linear-gradient(135deg,#22c55e,#16a34a);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem;font-size:2.2rem;color:#fff}
 .done-links{display:flex;flex-direction:column;gap:.75rem;margin-top:1.5rem}
 .done-link{display:flex;align-items:center;gap:10px;padding:12px 16px;background:#f8fafc;border-radius:10px;text-decoration:none;color:#0f172a;font-size:.85rem;font-weight:500;border:1px solid #e2e8f0;transition:.15s}
 .done-link:hover{background:#eff6ff;border-color:#bfdbfe}
 .done-link i{color:#3b82f6;width:18px;text-align:center}
+.section-label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;margin-bottom:.75rem;margin-top:1.25rem;padding-bottom:.4rem;border-bottom:1px solid #f1f5f9}
 </style>
 </head>
 <body>
 <div class="wizard">
   <div class="wizard-head">
-    <div class="wizard-logo">ProjectRBI</div>
+    <div class="wizard-logo">iBarangay</div>
     <div class="wizard-sub">Barangay Records Management System &bull; Setup Wizard</div>
     <div class="steps">
-      <div class="step-dot <?= $step>=1?($step>1?'done':'active'):'' ?>">
-        <div class="dot"><?= $step>1?'<i class="fas fa-check"></i>':'1' ?></div>
-        <div class="dot-label">Barangay</div>
+      <?php
+      $stepLabels = ['Barangay','Database','Admin','Done'];
+      for ($i=1; $i<=4; $i++):
+        $cls = $step > $i ? 'done' : ($step === $i ? 'active' : '');
+      ?>
+      <div class="step-dot <?= $cls ?>">
+        <div class="dot"><?= $step > $i ? '<i class="fas fa-check"></i>' : $i ?></div>
+        <div class="dot-label"><?= $stepLabels[$i-1] ?></div>
       </div>
-      <div class="step-dot <?= $step>=2?($step>2?'done':'active'):'' ?>">
-        <div class="dot"><?= $step>2?'<i class="fas fa-check"></i>':'2' ?></div>
-        <div class="dot-label">Database</div>
-      </div>
-      <div class="step-dot <?= $step>=3?($step>3?'done':'active'):'' ?>">
-        <div class="dot"><?= $step>3?'<i class="fas fa-check"></i>':'3' ?></div>
-        <div class="dot-label">Admin</div>
-      </div>
-      <div class="step-dot <?= $step>=4?'active':'' ?>">
-        <div class="dot"><?= $step>=4?'<i class="fas fa-check"></i>':'4' ?></div>
-        <div class="dot-label">Done</div>
-      </div>
+      <?php endfor; ?>
     </div>
   </div>
 
@@ -247,7 +530,7 @@ input:focus,select:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,2
 
   <?php if ($step === 1): ?>
     <h2>Barangay Information</h2>
-    <p class="desc">Enter your barangay details. These will appear on all documents and reports.</p>
+    <p class="desc">Enter your barangay details. These will appear on all documents, reports, and the map.</p>
     <form method="post">
       <input type="hidden" name="action" value="save_brgy"/>
       <div class="form-row">
@@ -262,23 +545,38 @@ input:focus,select:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,2
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>City / Municipality</label>
-          <input name="brgy_city" required placeholder="e.g. Manila" value="<?= htmlspecialchars($s['brgy_city'] ?? '') ?>"/>
+          <label>Zone / Sitio <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+          <input name="brgy_zone" placeholder="e.g. Zone 42" value="<?= htmlspecialchars($s['brgy_zone'] ?? '') ?>"/>
         </div>
         <div class="form-group">
-          <label>District</label>
-          <input name="brgy_district" placeholder="e.g. 1st District" value="<?= htmlspecialchars($s['brgy_district'] ?? '') ?>"/>
+          <label>City / Municipality</label>
+          <input name="brgy_city" required placeholder="e.g. City of Manila" value="<?= htmlspecialchars($s['brgy_city'] ?? '') ?>"/>
         </div>
       </div>
-      <div class="form-group">
-        <label>Province / Region</label>
-        <input name="brgy_province" placeholder="e.g. Metro Manila" value="<?= htmlspecialchars($s['brgy_province'] ?? '') ?>"/>
+      <div class="form-row">
+        <div class="form-group">
+          <label>District</label>
+          <input name="brgy_district" placeholder="e.g. IV" value="<?= htmlspecialchars($s['brgy_district'] ?? '') ?>"/>
+        </div>
+        <div class="form-group">
+          <label>Province / Region</label>
+          <input name="brgy_province" placeholder="e.g. Metro Manila" value="<?= htmlspecialchars($s['brgy_province'] ?? '') ?>"/>
+        </div>
       </div>
-      <div class="form-group">
-        <label>Punong Barangay Full Name <span style="color:#94a3b8;font-weight:400">(used as default document signer)</span></label>
-        <input name="signer_name" style="text-transform:uppercase" placeholder="e.g. JUAN DELA CRUZ" value="<?= htmlspecialchars($s['signer_name'] ?? '') ?>"/>
-        <span class="hint">Will be uppercased automatically on blotter documents.</span>
+
+      <div class="section-label"><i class="fas fa-map-pin"></i> &nbsp;Map Location</div>
+      <p class="hint" style="margin-bottom:.75rem">Right-click your barangay on Google Maps → copy coordinates. Used to center the resident map.</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Latitude</label>
+          <input name="brgy_lat" required placeholder="e.g. 14.6012" value="<?= htmlspecialchars($s['brgy_lat'] ?? '') ?>"/>
+        </div>
+        <div class="form-group">
+          <label>Longitude</label>
+          <input name="brgy_lng" required placeholder="e.g. 120.9960" value="<?= htmlspecialchars($s['brgy_lng'] ?? '') ?>"/>
+        </div>
       </div>
+
       <div class="form-actions">
         <button class="btn btn-primary" type="submit">Next <i class="fas fa-arrow-right"></i></button>
       </div>
@@ -286,7 +584,7 @@ input:focus,select:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,2
 
   <?php elseif ($step === 2): ?>
     <h2>Database Connection</h2>
-    <p class="desc">Enter the MySQL / MariaDB credentials. For XAMPP, the defaults below usually work.</p>
+    <p class="desc">Enter your MySQL / MariaDB credentials. For XAMPP the defaults below usually work.</p>
     <form method="post">
       <input type="hidden" name="action" value="save_db"/>
       <div class="form-row">
@@ -295,9 +593,9 @@ input:focus,select:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,2
           <input name="db_host" value="<?= htmlspecialchars($s['db_host'] ?? 'localhost') ?>"/>
         </div>
         <div class="form-group">
-          <label>Database Name</label>
-          <input name="db_name" value="<?= htmlspecialchars($s['db_name'] ?? 'projectrbi') ?>"/>
-          <span class="hint">Created automatically if it doesn't exist.</span>
+          <label>Port</label>
+          <input name="db_port" type="number" value="<?= htmlspecialchars($s['db_port'] ?? '3306') ?>"/>
+          <span class="hint">Default: 3306. Use 3307 for XAMPP bundled MariaDB.</span>
         </div>
       </div>
       <div class="form-row">
@@ -310,6 +608,11 @@ input:focus,select:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,2
           <input name="db_pass" type="password" placeholder="(blank for XAMPP default)" value="<?= htmlspecialchars($s['db_pass'] ?? '') ?>"/>
         </div>
       </div>
+      <div class="form-group">
+        <label>Database Name</label>
+        <input name="db_name" value="<?= htmlspecialchars($s['db_name'] ?? 'projectrbi') ?>"/>
+        <span class="hint">Will be created automatically if it doesn't exist.</span>
+      </div>
       <div class="form-actions">
         <a href="install.php?step=1" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
         <button class="btn btn-primary" type="submit">Test &amp; Continue <i class="fas fa-arrow-right"></i></button>
@@ -318,7 +621,7 @@ input:focus,select:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,2
 
   <?php elseif ($step === 3): ?>
     <h2>Admin Account</h2>
-    <p class="desc">Create the first captain account. This account has full access to all modules.</p>
+    <p class="desc">Create the Punong Barangay (Captain) account. This has full access to all modules.</p>
     <form method="post">
       <input type="hidden" name="action" value="save_admin"/>
       <div class="form-group">
@@ -349,15 +652,14 @@ input:focus,select:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,2
     <div style="text-align:center">
       <div class="done-icon"><i class="fas fa-check"></i></div>
       <h2 style="text-align:center;margin-bottom:.5rem">Setup Complete!</h2>
-      <p class="desc" style="text-align:center">Your ProjectRBI system is ready. Open the links below to get started.</p>
+      <p class="desc" style="text-align:center">All <?= 25 ?> database tables created. Your iBarangay system is ready.</p>
     </div>
     <div class="done-links">
       <a href="Home.php" class="done-link"><i class="fas fa-house"></i> Go to Dashboard</a>
       <a href="admin.php" class="done-link"><i class="fas fa-right-to-bracket"></i> Login Page</a>
-      <a href="config.php" class="done-link" target="_blank"><i class="fas fa-gear"></i> View config.php (verify settings)</a>
     </div>
     <p style="font-size:.75rem;color:#94a3b8;text-align:center;margin-top:1.25rem">
-      <i class="fas fa-lock"></i> For security, the setup wizard is now locked.<br>
+      <i class="fas fa-lock"></i> The setup wizard is now locked.<br>
       Delete <code>install.lock</code> only if you need to re-run setup.
     </p>
   <?php endif; ?>

@@ -1,6 +1,7 @@
 ﻿<?php
 session_start();
 if(!isset($_SESSION['admin'])){header("Location: admin.php");exit();}
+$admin = $_SESSION['admin'];
 include 'role_helper.php';
 include 'Residents_DB.php';
 
@@ -55,26 +56,34 @@ if($_SERVER['REQUEST_METHOD']==='POST' && $can_edit){
     }
 
     if($action === 'edit'){
-        $id  = (int)($_POST['sc_id'] ?? 0);
-        $ln  = mysqli_real_escape_string($conn, trim($_POST['last_name']  ?? ''));
-        $fn  = mysqli_real_escape_string($conn, trim($_POST['first_name'] ?? ''));
-        $mn  = mysqli_real_escape_string($conn, trim($_POST['middle_name']?? ''));
-        $gen = mysqli_real_escape_string($conn, $_POST['gender'] ?? '');
-        $bm  = (int)($_POST['birth_month'] ?? 0);
-        $bd  = (int)($_POST['birth_day']   ?? 0);
-        $by  = (int)($_POST['birth_year']  ?? 0);
-        $addr= mysqli_real_escape_string($conn, trim($_POST['address']        ?? ''));
-        $con = mysqli_real_escape_string($conn, trim($_POST['contact_number'] ?? ''));
-        $sta = mysqli_real_escape_string($conn, $_POST['status'] ?? 'Active');
+        // Verify password before saving
+        $pw_attempt = $_POST['confirm_password'] ?? '';
+        $adm_esc    = mysqli_real_escape_string($conn, $admin);
+        $adm_row    = $conn->query("SELECT password FROM admins WHERE username='$adm_esc' LIMIT 1")->fetch_assoc();
+        if(!$adm_row || !password_verify($pw_attempt, $adm_row['password'])){
+            $err = 'Incorrect password. Changes were not saved.';
+        } else {
+            $id  = (int)($_POST['sc_id'] ?? 0);
+            $ln  = mysqli_real_escape_string($conn, trim($_POST['last_name']  ?? ''));
+            $fn  = mysqli_real_escape_string($conn, trim($_POST['first_name'] ?? ''));
+            $mn  = mysqli_real_escape_string($conn, trim($_POST['middle_name']?? ''));
+            $gen = mysqli_real_escape_string($conn, $_POST['gender'] ?? '');
+            $bm  = (int)($_POST['birth_month'] ?? 0);
+            $bd  = (int)($_POST['birth_day']   ?? 0);
+            $by  = (int)($_POST['birth_year']  ?? 0);
+            $addr= mysqli_real_escape_string($conn, trim($_POST['address']        ?? ''));
+            $con = mysqli_real_escape_string($conn, trim($_POST['contact_number'] ?? ''));
+            $sta = mysqli_real_escape_string($conn, $_POST['status'] ?? 'Active');
 
-        if(!$id || !$ln || !$fn){$err="Missing required fields.";}
-        else{
-            $conn->query("UPDATE senior_citizens SET
-                last_name='$ln',first_name='$fn',middle_name='$mn',gender='$gen',
-                birth_month=$bm,birth_day=$bd,birth_year=$by,
-                address='$addr',contact_number='$con',status='$sta'
-                WHERE id=$id");
-            $msg = "Record updated.";
+            if(!$id || !$ln || !$fn){ $err = 'Missing required fields.'; }
+            else {
+                $conn->query("UPDATE senior_citizens SET
+                    last_name='$ln',first_name='$fn',middle_name='$mn',gender='$gen',
+                    birth_month=$bm,birth_day=$bd,birth_year=$by,
+                    address='$addr',contact_number='$con',status='$sta'
+                    WHERE id=$id");
+                $msg = 'Record updated.';
+            }
         }
     }
 
@@ -127,6 +136,12 @@ function sc_age($m,$d,$y){
 .page-top h1{color:#fff;font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800}
 .page-top p{color:rgba(255,255,255,.45);font-size:12px;margin-top:2px}
 main{padding:1.5rem;max-width:1200px;margin:0 auto}
+@media print{
+  header.topbar,.sidebar,.sidebar-overlay,.page-hero,footer,
+  #settingsOverlay,#settingsDrawer,.btn,button:not(.no-hide){display:none!important}
+  body{background:#fff}
+  main{padding:0;max-width:100%}
+}
 .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.25rem}
 @media(max-width:600px){.stat-row{grid-template-columns:1fr 1fr}}
 .scard{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:.85rem;text-align:center}
@@ -182,6 +197,7 @@ tbody tr.birthday-today{background:#f0fdf4}
 .fgrow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .fgrow2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:center;padding:1.25rem;margin-top:2rem}
+@keyframes modalIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 .empty-state{text-align:center;padding:3rem;color:#94a3b8}
 .empty-state i{font-size:48px;opacity:.2;display:block;margin-bottom:12px}
 .topbar{position:sticky;top:0;z-index:200}
@@ -194,7 +210,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
     <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0">
       <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
     </div>
-    <div><div class="topbar-name">Barangay 410</div><div class="topbar-sub">Senior Citizens</div></div>
+    <div><div class="topbar-name">Barangay 410</div></div>
   </a>
   <div class="topbar-right" style="margin-left:auto">
     <?php if($is_captain):?>
@@ -263,10 +279,10 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
   <div class="sidebar-footer"></div>
 </aside>
 
-<div style="background:linear-gradient(to right,rgba(15,23,42,.9),rgba(15,23,42,.65)),url('images/Barangay_officials_410.png') center 60%/cover no-repeat;padding:2rem 2rem">
-  <div>
+<div style="background:linear-gradient(to right,rgba(15,23,42,.85),rgba(15,23,42,.55)),url('images/Barangay_officials_410.png') center center/cover no-repeat;padding:2rem 2rem;min-height:300px;display:flex;align-items:center">
+  <div style="max-width:1200px;width:100%">
     <h1 style="font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;color:#fff;margin:0 0 .25rem"><i class="fas fa-person-cane" style="margin-right:.5rem;opacity:.8"></i>Senior Citizens Registry</h1>
-    <p style="color:rgba(255,255,255,.6);font-size:.84rem;margin:0">Barangay 410 · Manila City · Senior citizen records and birthday tracking</p>
+    <p style="color:rgba(255,255,255,.6);font-size:.84rem;margin:0">Senior Citizen Records &amp; Birthday Tracking</p>
   </div>
 </div>
 <main style="padding-top:1.75rem">
@@ -443,10 +459,11 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
 <div class="modal-overlay" id="editModal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal-box">
     <h3><i class="fas fa-pen" style="color:#3b82f6;margin-right:8px"></i>Edit Senior Citizen</h3>
-    <form method="POST">
+    <form method="POST" id="editForm">
       <?= csrf_field() ?>
       <input type="hidden" name="action" value="edit">
       <input type="hidden" name="sc_id" id="edit_id">
+      <input type="hidden" name="confirm_password" id="edit_confirm_pw">
       <div class="fgrow">
         <div class="fg"><label>Last Name *</label><input type="text" name="last_name" id="edit_ln" required></div>
         <div class="fg"><label>First Name *</label><input type="text" name="first_name" id="edit_fn" required></div>
@@ -476,9 +493,41 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
       <div class="fg"><label>Address</label><textarea name="address" id="edit_addr" rows="2"></textarea></div>
       <div style="display:flex;gap:10px;margin-top:.5rem">
         <button type="button" class="btn btn-outline" style="flex:1" onclick="document.getElementById('editModal').classList.remove('open')">Cancel</button>
-        <button type="submit" class="btn btn-primary" style="flex:1"><i class="fas fa-save"></i> Update</button>
+        <button type="button" class="btn btn-primary" style="flex:1" onclick="openEditPwModal()"><i class="fas fa-save"></i> Update</button>
       </div>
     </form>
+  </div>
+</div>
+<?php endif;?>
+
+<!-- PASSWORD CONFIRM MODAL -->
+<?php if($can_edit):?>
+<div class="modal-overlay" id="editPwModal" onclick="if(event.target===this)closeEditPwModal()">
+  <div class="modal-box" style="max-width:380px;animation:modalIn .22s ease">
+    <h3 style="display:flex;align-items:center;gap:10px">
+      <span style="width:34px;height:34px;background:#eff6ff;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="fas fa-lock" style="color:#3b82f6;font-size:14px"></i>
+      </span>
+      Confirm Changes
+    </h3>
+    <p style="font-size:13px;color:#475569;margin-bottom:1.1rem;line-height:1.6">Enter your password to save the changes to this senior citizen record.</p>
+    <div class="fg">
+      <label>Password</label>
+      <div style="position:relative">
+        <input type="password" id="editPwInput" placeholder="Enter your password"
+               style="width:100%;padding:9px 44px 9px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;outline:none;box-sizing:border-box;transition:border .2s"
+               onfocus="this.style.borderColor='#10b981'" onblur="this.style.borderColor='#e2e8f0'"
+               onkeydown="if(event.key==='Enter')confirmEditSave()">
+        <button type="button" onclick="toggleEditPw()" tabindex="-1"
+                style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#94a3b8;cursor:pointer;padding:4px;font-size:14px">
+          <i class="fas fa-eye" id="editPwEyeIcon"></i>
+        </button>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:1.1rem">
+      <button type="button" class="btn btn-outline" style="flex:1" onclick="closeEditPwModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" style="flex:1" onclick="confirmEditSave()"><i class="fas fa-save"></i> Save Changes</button>
+    </div>
   </div>
 </div>
 <?php endif;?>
@@ -513,9 +562,9 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
   </div>
   <div style="flex:1;overflow-y:auto;padding:16px">
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Actions</div>
-    <button onclick="window.print()" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer">
+    <button onclick="printSC()" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer">
       <div style="width:30px;height:30px;background:rgba(255,255,255,.08);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-print" style="color:#94a3b8;font-size:13px"></i></div>
-      <div style="text-align:left"><div style="font-size:13px;font-weight:600;color:#fff">Print Page</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Print current view</div></div>
+      <div style="text-align:left"><div style="font-size:13px;font-weight:600;color:#fff">Print List</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Print the senior citizens list</div></div>
     </button>
   </div>
   <div style="padding:14px 16px;border-top:1px solid rgba(255,255,255,.07)">
@@ -532,13 +581,39 @@ function closeSidebar(){document.getElementById('sidebar').classList.remove('ope
 document.getElementById('menuToggle').addEventListener('click',openSidebar);
 function openSettings(){document.getElementById('settingsOverlay').style.display='block';document.getElementById('settingsDrawer').style.right='0';document.body.style.overflow='hidden';if(typeof closeSidebar==='function')closeSidebar();}
 function closeSettings(){document.getElementById('settingsOverlay').style.display='none';document.getElementById('settingsDrawer').style.right='-360px';document.body.style.overflow='';}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSettings();});
+function printSC(){closeSettings();setTimeout(()=>window.print(),350);}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSettings();closeEditPwModal();}});
 
 function switchTab(name, el){
     document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
     document.getElementById('tab-'+name).classList.add('active');
     el.classList.add('active');
+}
+
+function openEditPwModal(){
+  document.getElementById('editPwInput').value = '';
+  const inp = document.getElementById('editPwInput');
+  inp.type = 'password';
+  document.getElementById('editPwEyeIcon').className = 'fas fa-eye';
+  document.getElementById('editPwModal').classList.add('open');
+  setTimeout(()=>inp.focus(), 120);
+}
+function closeEditPwModal(){
+  document.getElementById('editPwModal').classList.remove('open');
+}
+function toggleEditPw(){
+  const inp = document.getElementById('editPwInput');
+  const ico = document.getElementById('editPwEyeIcon');
+  if(inp.type==='password'){inp.type='text';ico.className='fas fa-eye-slash';}
+  else{inp.type='password';ico.className='fas fa-eye';}
+}
+function confirmEditSave(){
+  const pw = document.getElementById('editPwInput').value;
+  if(!pw){document.getElementById('editPwInput').style.borderColor='#f43f5e';return;}
+  document.getElementById('edit_confirm_pw').value = pw;
+  document.getElementById('editPwModal').classList.remove('open');
+  document.getElementById('editForm').submit();
 }
 
 function openEdit(row){
@@ -558,6 +633,10 @@ function openEdit(row){
 </script>
 </body>
 </html>
+
+
+
+
 
 
 
