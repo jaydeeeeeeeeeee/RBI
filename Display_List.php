@@ -442,10 +442,6 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
     <?php endif; // !$is_guest data section ?>
 
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Actions</div>
-    <button onclick="window.print()" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:all .2s" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background='rgba(255,255,255,.05)'">
-      <div style="width:30px;height:30px;background:rgba(255,255,255,.08);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-print" style="color:#94a3b8;font-size:13px"></i></div>
-      <div style="text-align:left"><div style="font-size:13px;font-weight:600;color:#fff">Print List</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Print current residents view</div></div>
-    </button>
     <a href="signatory_settings.php" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;text-decoration:none">
       <div style="width:30px;height:30px;background:rgba(139,92,246,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-pen-nib" style="color:#a78bfa;font-size:13px"></i></div>
       <div style="text-align:left"><div style="font-size:13px;font-weight:600;color:#fff">Signatory Settings</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Edit names on printed documents</div></div>
@@ -1290,13 +1286,3 @@ function toggleDarkMode(){darkMode=!darkMode;localStorage.setItem('rbi_dark',dar
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-

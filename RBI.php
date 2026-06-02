@@ -265,7 +265,7 @@ $total_households = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(DISTINC
     .print-header-text .doc-title { font-size: 15px; font-weight: 700; margin-top: 6px; letter-spacing: 1.5px; font-family: 'Times New Roman', serif; text-transform: uppercase; }
     .print-header-text .doc-sub   { font-size: 10px; color: #444; font-family: 'Times New Roman', serif; }
 
-    @page { size: A4 portrait; margin: 5mm 6mm; }
+    @page { size: A4 portrait; margin: 10mm 10mm; }
 
     @media print {
       /* ── Hide all UI chrome ── */
@@ -273,109 +273,152 @@ $total_households = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(DISTINC
       #settingsOverlay, #settingsDrawer, footer { display: none !important; }
 
       * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      body { background: #fff !important; font-size: 7px; color: #000; margin: 0; }
-      main { padding: 0; max-width: 100%; }
+      body { background: #fff !important; font-size: 9.5pt; color: #000; margin: 0; font-family: 'Times New Roman', Times, serif; }
+      main { padding: 12mm 0 0; max-width: 100%; }
 
-      /* ── Print header — compact single bar ── */
-      .print-header {
-        display: flex !important;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 5px;
-        padding: 4px 0 4px;
-        border-top: 2.5px solid #000;
-        border-bottom: 2.5px solid #000;
-      }
-      .print-header-logo { width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; }
-      .print-header-text p { font-size: 7px !important; margin: 0 !important; }
-      .print-header-text .brgy-name { font-size: 9px !important; }
-      .print-header-text .doc-title { font-size: 10px !important; margin-top: 2px !important; letter-spacing: .5px !important; }
-      .print-header-text .doc-sub { font-size: 7px !important; }
-
-      /* ── Watermark ── */
-      .print-seal-watermark {
-        display: block !important;
-        position: fixed;
-        top: 50%; left: 50%;
-        transform: translate(-50%, -50%);
-        width: 60mm; height: 60mm;
-        opacity: 0.06;
-        z-index: 0;
-        pointer-events: none;
-      }
-
-      /* ── Side watermark ── */
+      /* ── Vertical "DIGITAL COPY" watermark — left side, full height ── */
       .print-digital-watermark {
         display: flex !important;
         position: fixed;
-        left: 0; top: 0; bottom: 0; width: 6mm;
+        left: 0; top: 0; bottom: 0;
+        width: 16mm;
         align-items: center; justify-content: center;
-        overflow: hidden; pointer-events: none; z-index: 9999;
+        overflow: visible;
+        pointer-events: none; z-index: 9999;
       }
       .print-digital-watermark span {
-        writing-mode: vertical-rl; transform: rotate(180deg);
-        font-size: 3.5mm; font-weight: bold;
-        color: rgba(60,60,60,.3);
-        font-family: 'Times New Roman', serif;
-        letter-spacing: .04em; white-space: nowrap;
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        font-size: 8mm;
+        font-weight: bold;
+        color: rgba(0,0,0,.18);
+        font-family: 'Times New Roman', Times, serif;
+        letter-spacing: .05em;
+        white-space: nowrap;
       }
 
-      /* ── Layout: age bracket left, sector+civil right ── */
-      .print-body { display: flex !important; gap: 6px; align-items: flex-start; }
-      .print-col-left  { flex: 1.4; min-width: 0; }
-      .print-col-right { flex: 1; min-width: 0; }
+      /* ── Print seal watermark (centered, faint, behind content) ── */
+      .print-seal-watermark {
+        display: block !important;
+        position: fixed !important;
+        left: 50% !important;
+        top: 50% !important;
+        transform: translate(-50%,-50%) !important;
+        width: 120mm !important;
+        max-width: 72% !important;
+        height: auto !important;
+        opacity: 0.06 !important;
+        z-index: 0 !important;
+        pointer-events: none !important;
+        filter: grayscale(100%);
+      }
 
-      /* ── Summary cards — single compact row ── */
-      .summary-row { margin-bottom: 5px; gap: 4px; }
-      .sum-card { padding: 3px 6px; border: 1px solid #999 !important; border-radius: 2px !important; background: #fff !important; }
-      .sum-num { font-size: 13px !important; }
-      .sum-lbl { font-size: 7px !important; }
+      /* ── Print header — traditional document header ── */
+      .print-header {
+        display: flex !important;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+        padding: 6px 0;
+        border-top: 2px solid #000;
+        border-bottom: 2px solid #000;
+      }
+      .print-header-logos { display: flex; align-items: center; gap: 8px; }
+      .print-header-logo { width: 40px; height: 40px; object-fit: contain; flex-shrink: 0; }
+      .print-header-text { flex: 1; text-align: center; padding: 0 10px; }
+      .print-header-text p { font-size: 9pt !important; margin: 0 !important; font-family: 'Times New Roman', Times, serif; }
+      .print-header-text .brgy-name { font-size: 11pt !important; font-weight: 700; }
+      .print-header-text .doc-title { font-size: 12pt !important; margin-top: 3px !important; letter-spacing: .05em !important; font-weight: 700; text-transform: uppercase; }
+      .print-header-text .doc-sub { font-size: 8pt !important; }
+
+      /* ── Layout ── */
+      .print-body { display: flex !important; gap: 22px; align-items: flex-start; justify-content: flex-start; width: 100% !important; margin: 0 auto; }
+      .print-col-left  { flex: 1.4; min-width: 0; }
+      .print-col-right { flex: 1.6; min-width: 0; }
+
+      /* ── Summary cards — clean, simple ── */
+      .summary-row { margin-bottom: 18px; gap: 8px; grid-template-columns: repeat(5, 1fr); }
+      .sum-card { padding: 6px 8px; border: 1px solid #000 !important; border-radius: 0 !important; background: #fff !important; }
+      .sum-num { font-size: 16pt !important; font-weight: 700; font-family: 'Times New Roman', Times, serif; }
+      .sum-lbl { font-size: 8pt !important; font-family: 'Times New Roman', Times, serif; }
 
       /* ── Section titles ── */
       .section-title {
-        font-size: 7px !important; font-weight: 700; color: #000 !important;
-        border-bottom: 1px solid #000; padding-bottom: 2px; margin-bottom: 3px;
+        font-size: 9pt !important; font-weight: 700; color: #000 !important;
+        border-bottom: 1.5px solid #000; padding-bottom: 3px; margin-bottom: 6px;
+        font-family: 'Times New Roman', Times, serif;
       }
       .section-title::after { display: none; }
 
-      /* ── Tables ── */
+      /* ── Tables — traditional document style ── */
       .rbi-card {
-        border: 1px solid #aaa !important; border-radius: 0 !important;
-        box-shadow: none !important; margin-bottom: 5px !important;
+        border: 1px solid #000 !important; border-radius: 0 !important;
+        box-shadow: none !important; margin-bottom: 12px !important; margin-top: 10px !important;
         break-inside: avoid; overflow: visible !important;
       }
-      .two-col { gap: 5px; margin-bottom: 5px; }
+      .two-col { display: block !important; margin-bottom: 10px; }
+      .two-col > div { margin-bottom: 12px; }
 
       .rbi-table th, .sector-table th {
         background: #1a1a2e !important; color: #fff !important;
-        padding: 3px 4px !important; font-size: 7px !important;
+        padding: 6px 8px !important; font-size: 8pt !important;
+        font-family: 'Times New Roman', Times, serif; font-weight: 700;
       }
       .rbi-table td, .sector-table td {
-        padding: 2px 4px !important; font-size: 7px !important;
-        border-bottom: 1px solid #e5e5e5 !important;
+        padding: 4px 6px !important; font-size: 8.5pt !important;
+        border-bottom: 1px solid #999 !important;
+        font-family: 'Times New Roman', Times, serif;
+        line-height: 1.3; 
       }
+      .rbi-table { table-layout: auto !important; word-break: normal !important; }
+      .sector-table { table-layout: fixed !important; word-break: break-word !important; }
+      .rbi-table th.left { width: 45%; }
+      .rbi-table th:not(.left) { width: 18.33%; }
+      .sector-table th:first-child { width: 65% !important; }
+      .sector-table th.right, .sector-table td:last-child { width: 35% !important; }
+      .sector-table td:first-child { text-align: left !important; }
+      .rbi-table td.label { padding-left: 10px !important; }
+      .sector-table td { padding: 6px 8px !important; }
+      .sector-table td:last-child { text-align: right !important; }
+      .rbi-table th { white-space: nowrap !important; overflow: visible !important; }
+      .rbi-table th .br { display: none !important; }
       .rbi-table .total-row td {
-        background: #dbeafe !important; font-weight: 700;
-        border-top: 1.5px solid #3b82f6 !important;
+        background: #e8f1ff !important; font-weight: 700;
+        border-top: 2px solid #000 !important;
       }
       .rbi-table td.group-label {
-        background: #f1f5f9 !important;
-        padding: 2px 6px !important; font-size: 7px !important;
+        background: #f5f5f5 !important;
+        padding: 4px 8px !important; font-size: 8pt !important;
+        font-weight: 700;
       }
 
       /* ── Sector table: hide bars, show number only ── */
       .bar-wrap { display: none !important; }
-      .sector-table td:first-child { font-weight: 500; }
+      .sector-table td:first-child { font-weight: 600; }
 
-      /* ── Signatories ── */
-      .print-signatories {
-        display: flex !important; justify-content: space-around;
-        margin-top: 10px; padding-top: 6px;
-        border-top: 1px dashed #aaa; page-break-inside: avoid;
+      /* ── Signatories — show side-by-side on print ── */
+      .print-signatories { display: block !important; }
+      .print-signatories > div { page-break-inside: avoid; }
+
+      /* ── Footer footnote ── */
+      main > p { font-size: 7.5pt !important; color: #666 !important; border-top: 1px solid #000 !important; padding-top: 6px !important; margin-top: 12px !important; font-style: italic; font-family: 'Times New Roman', Times, serif; }
+      .print-footnote {
+        position: fixed !important;
+        bottom: 10mm !important;
+        left: 26mm !important;
+        right: 10mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        text-align: center !important;
+        font-size: 7.5pt !important;
+        color: #666 !important;
+        font-style: italic !important;
+        font-family: 'Times New Roman', Times, serif !important;
+        border-top: 1px solid #000 !important;
+        padding-top: 4px !important;
+        background: #fff !important;
       }
-      .print-signatories > div { text-align: center; }
-      .print-signatories strong { font-size: 7.5px !important; }
-      .print-signatories span   { font-size: 7px !important; }
     }
     .topbar{position:sticky;top:0;z-index:200}
   </style>
@@ -429,11 +472,14 @@ $_rbi_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
 
 <main>
   <!-- Seal watermark — centered on page like eBlotter PDF (print only) -->
-  <img src="images/brgy410_logo.png" alt="" class="print-seal-watermark">
+  <img src="images/brgy_seal.png" alt="" class="print-seal-watermark">
 
   <!-- Print header (print only) -->
   <div class="print-header">
-    <img src="images/brgy410_logo.png" class="print-header-logo" alt="Barangay Logo">
+    <div class="print-header-logos">
+      <img src="images/logo_bagong_pilipinas.png" class="print-header-logo" alt="Bagong Pilipinas">
+      <img src="images/brgy410_logo.png" class="print-header-logo" alt="Barangay 410 Logo">
+    </div>
     <div class="print-header-text">
       <p style="font-size:9px">Republic of the Philippines</p>
       <p style="font-size:9px"><?= defined('BRGY_CITY') ? htmlspecialchars(BRGY_CITY) : 'City of Manila' ?></p>
@@ -446,7 +492,10 @@ $_rbi_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
       <div class="doc-sub">Printed: <?= date('F d, Y \a\t g:i A') ?><?= $selected_head ? ' &nbsp;·&nbsp; Head of Family: '.htmlspecialchars($selected_head) : ' &nbsp;·&nbsp; All Households' ?></div>
       <div class="doc-sub" style="margin-top:2px">Total Inhabitants: <strong><?= $grand_total ?></strong> &nbsp;·&nbsp; Male: <strong><?= $total_male ?></strong> &nbsp;·&nbsp; Female: <strong><?= $total_female ?></strong> &nbsp;·&nbsp; Households: <strong><?= $total_households ?></strong></div>
     </div>
-    <img src="images/brgy410_logo.png" class="print-header-logo" alt="" style="opacity:.35">
+    <div class="print-header-logos">
+      <img src="images/lungsod_ng_manila_logo.png" class="print-header-logo" alt="City of Manila Logo">
+      <img src="images/barangay-logo.png" class="print-header-logo" alt="Barangay Logo">
+    </div>
   </div>
 
   <!-- TOOLBAR -->
@@ -501,7 +550,7 @@ $_rbi_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
           <th class="left" style="width:50%">Age Bracket</th>
           <th>Male</th>
           <th>Female</th>
-          <th>Filipino Citizen</th>
+          <th>Filipino<br>Citizen</th>
         </tr>
       </thead>
       <tbody>
@@ -596,7 +645,7 @@ $_rbi_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
   </div><!-- end print-body -->
 
   <!-- FOOTER NOTE -->
-  <p style="font-size:11px;color:var(--muted);text-align:center;padding:1rem 0">
+  <p class="print-footnote" style="font-size:9px;color:var(--muted);text-align:center;padding:0;margin:0;font-style:italic">
     &copy; <?= date('Y') ?> Barangay 410 Census Management System &nbsp;·&nbsp; Manila City &nbsp;·&nbsp;
     Report generated on <?= date('F d, Y \a\t g:i A') ?>
   </p>
@@ -606,24 +655,28 @@ $_rbi_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
     <?php
       $sig_captain   = $_signatories['captain']   ?? [];
       $sig_secretary = $_signatories['secretary'] ?? [];
-      $cap_name = strtoupper(trim($sig_captain['full_name']   ?? '')) ?: 'PUNONG BARANGAY';
-      $cap_title=              trim($sig_captain['title']      ?? '') ?: 'Punong Barangay';
-      $sec_name = strtoupper(trim($sig_secretary['full_name'] ?? '')) ?: 'BARANGAY SECRETARY';
-      $sec_title=              trim($sig_secretary['title']   ?? '') ?: 'Barangay Secretary';
+      $cap_name  = strtoupper(trim($sig_captain['full_name']   ?? '')) ?: 'PUNONG BARANGAY';
+      $cap_title =              trim($sig_captain['title']      ?? '') ?: 'Punong Barangay';
+      $sec_name  = strtoupper(trim($sig_secretary['full_name'] ?? '')) ?: 'BARANGAY SECRETARY';
+      $sec_title =              trim($sig_secretary['title']   ?? '') ?: 'Barangay Secretary';
     ?>
-    <div style="text-align:center;">
-      <div style="height:40px;"></div>
-      <div style="border-top:1.5px solid #000;width:220px;margin:0 auto;padding-top:5px;">
-        <strong style="font-size:10px;text-transform:uppercase;display:block;"><?= htmlspecialchars($cap_name) ?></strong>
-        <span style="font-size:9px;"><?= htmlspecialchars($cap_title) ?></span>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:32px;gap:20px;">
+      <!-- Barangay Captain -->
+      <div style="flex:1;text-align:center;">
+        <div style="height:40px;"></div>
+        <div style="border-top:1.5px solid #000;padding-top:5px;">
+          <strong style="font-size:10px;text-transform:uppercase;display:block;"><?= htmlspecialchars($cap_name) ?></strong>
+          <span style="font-size:9px;"><?= htmlspecialchars($cap_title) ?></span>
+        </div>
       </div>
-    </div>
-    <div style="text-align:center;">
-      <div style="height:40px;"></div>
-      <div style="border-top:1.5px solid #000;width:220px;margin:0 auto;padding-top:5px;">
-        <strong style="font-size:10px;text-transform:uppercase;display:block;"><?= htmlspecialchars($sec_name) ?></strong>
-        <span style="font-size:9px;"><?= htmlspecialchars($sec_title) ?></span>
-        <span style="font-size:9px;display:block;color:#555">Certified Correct</span>
+      <!-- Barangay Secretary -->
+      <div style="flex:1;text-align:center;">
+        <div style="height:40px;"></div>
+        <div style="border-top:1.5px solid #000;padding-top:5px;">
+          <strong style="font-size:10px;text-transform:uppercase;display:block;"><?= htmlspecialchars($sec_name) ?></strong>
+          <span style="font-size:9px;"><?= htmlspecialchars($sec_title) ?></span>
+          <span style="font-size:9px;display:block;color:#555;">Certified Correct</span>
+        </div>
       </div>
     </div>
   </div>
@@ -682,10 +735,3 @@ document.getElementById('menuToggle').addEventListener('click',openSidebar);
 <div class="print-digital-watermark" style="display:none"><span>DIGITAL COPY - NOT VALID IF UNSIGNED</span></div>
 </body>
 </html>
-
-
-
-
-
-
-

@@ -386,14 +386,14 @@ $csrf_token = generateCSRFToken();
                     </div>
                 <?php endif; ?>
 
-                <form method="POST" action="">
+                <form method="POST" action="" autocomplete="off" data-lpignore="true" data-1p-ignore>
                     <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
 
                     <div class="field">
                         <label for="username">Username / Email</label>
                         <div class="input-wrap">
                             <i class="bi bi-person-fill"></i>
-                            <input type="text" id="username" name="username" required autofocus autocomplete="username">
+                            <input type="text" id="username" name="username" required autofocus autocomplete="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore>
                         </div>
                     </div>
 
@@ -401,12 +401,48 @@ $csrf_token = generateCSRFToken();
                         <label for="password">Password</label>
                         <div class="input-wrap">
                             <i class="bi bi-lock-fill"></i>
-                            <input type="password" id="password" name="password" required autocomplete="current-password">
+                            <input type="password" id="password" name="password" required autocomplete="off" data-lpignore="true" data-1p-ignore data-pwd-no-autofill="true">
                         </div>
                     </div>
 
                     <button type="submit" class="btn-login">Login</button>
                 </form>
+
+                <script>
+                  // Disable autocomplete suggestions and password manager popups
+                  document.addEventListener('DOMContentLoaded', function() {
+                    const loginForm = document.querySelector('form[method="POST"]');
+                    const usernameField = document.getElementById('username');
+                    const passwordField = document.getElementById('password');
+
+                    if (loginForm) {
+                      loginForm.addEventListener('submit', function(e) {
+                        usernameField.autocomplete = 'off';
+                        passwordField.autocomplete = 'off';
+                      });
+                    }
+
+                    if (usernameField) {
+                      usernameField.addEventListener('focus', function() {
+                        this.setAttribute('autocomplete', 'off');
+                        this.value = '';
+                      });
+                      usernameField.addEventListener('blur', function() {
+                        if (this.value) this.removeAttribute('autocomplete');
+                      });
+                    }
+
+                    if (passwordField) {
+                      passwordField.addEventListener('focus', function() {
+                        this.setAttribute('autocomplete', 'off');
+                        this.value = '';
+                      });
+                      passwordField.addEventListener('blur', function() {
+                        if (this.value) this.removeAttribute('autocomplete');
+                      });
+                    }
+                  });
+                </script>
 
                 <div class="forgot">
                     <a href="forgot_password.php"><i class="bi bi-question-circle"></i> Forgot Password?</a>

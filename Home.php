@@ -546,11 +546,6 @@ main{padding:1.5rem;max-width:1200px;margin:0 auto}
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div style="width:30px;height:30px;background:rgba(34,197,94,.15);border-radius:8px;display:flex;align-items:center;justify-content:center"><i class="fas fa-download" style="color:#4ade80;font-size:13px"></i></div><div><div style="font-size:13px;font-weight:600;color:#fff">Export Data</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Download residents as Excel</div></div></div>
       <a href="Export_excel.php" style="display:block;width:100%;padding:8px;background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);border-radius:7px;color:#4ade80;font-family:Inter,sans-serif;font-size:12px;font-weight:600;cursor:pointer;text-align:center;text-decoration:none;box-sizing:border-box"><i class="fas fa-download"></i> Export</a>
     </div>
-    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Actions</div>
-    <button onclick="window.print()" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer">
-      <div style="width:30px;height:30px;background:rgba(255,255,255,.08);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-print" style="color:#94a3b8;font-size:13px"></i></div>
-      <div style="text-align:left"><div style="font-size:13px;font-weight:600;color:#fff">Print Page</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Print current view</div></div>
-    </button>
   </div>
   <div style="padding:14px 16px;border-top:1px solid rgba(255,255,255,.07)">
     <a href="logout.php" style="display:flex;align-items:center;gap:10px;background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.25);border-radius:10px;padding:12px 14px;text-decoration:none">

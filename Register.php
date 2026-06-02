@@ -306,7 +306,6 @@ if (isset($_POST['citizenship']) && in_array($_POST['citizenship'], ['Other', 'D
         <img src="images/brgy410_logo.png" style="width:100%;height:100%;object-fit:cover">
       </div>
       <div><div class="sidebar-head-title">ProjectRBI</div><div class="sidebar-head-sub">Barangay 410 · Manila</div></div></div><button class="sidebar-close-btn" onclick="closeSidebar()"><i class="fas fa-times"></i></button></div>
-  <div style="padding:14px 12px 6px"><button onclick="openSettings()" class="sidebar-settings-btn" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);color:#93c5fd;font-family:Inter,sans-serif;font-size:13px;font-weight:600;cursor:pointer"><i class="fas fa-gear"></i> Settings & More<i class="fas fa-arrow-right" style="margin-left:auto;font-size:10px;opacity:.6"></i></button></div>
   <div class="sidebar-section"><div class="sidebar-label">Main</div>
     <a href="Home.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-house"></i></span> Dashboard</a>
     <?php if($can_register):?><a href="Register.php" class="sidebar-link active"><span class="sidebar-icon"><i class="fas fa-user-plus"></i></span> Register</a><?php endif;?>
@@ -387,7 +386,7 @@ if (isset($_POST['citizenship']) && in_array($_POST['citizenship'], ['Other', 'D
       <div class="step-ind" id="si-3"><div class="step-num">4</div><div class="step-label">Pets & Submit</div></div>
     </div>
 
-    <form action="Register.php" method="POST" id="multiStepForm">
+    <form action="Register.php" method="POST" id="multiStepForm" autocomplete="off">
           <?= csrf_field() ?>
           <!-- Step 1: Personal Information -->
           <div class="form-step active">
@@ -1345,9 +1344,10 @@ if (isset($_POST['citizenship']) && in_array($_POST['citizenship'], ['Other', 'D
         <i class="fas fa-key" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:12px;pointer-events:none"></i>
         <input type="password" id="bulkConfirmPw" placeholder="Enter admin password"
           style="width:100%;padding:11px 42px 11px 36px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;font-family:Inter,sans-serif;outline:none;box-sizing:border-box;color:#0f172a;background:#fafafa;transition:border-color .15s,box-shadow .15s"
-          onfocus="this.style.borderColor='#3b82f6';this.style.boxShadow='0 0 0 3px rgba(59,130,246,.1)';this.style.background='#fff'"
+          onfocus="this.style.borderColor='#3b82f6';this.style.boxShadow='0 0 0 3px rgba(59,130,246,.1)';this.style.background='#fff';this.setAttribute('autocomplete','off');this.value=''"
           onblur="this.style.borderColor='#e2e8f0';this.style.boxShadow='none';this.style.background='#fafafa'"
-          onkeydown="if(event.key==='Enter')confirmBulkSave();if(event.key==='Escape')closeBulkPwModal()">
+          onkeydown="if(event.key==='Enter')confirmBulkSave();if(event.key==='Escape')closeBulkPwModal()"
+          autocomplete="off" data-lpignore="true" data-1p-ignore>
         <button type="button" onclick="toggleBulkPw()" tabindex="-1"
           style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#94a3b8;font-size:13px;padding:5px;line-height:1;z-index:2">
           <i class="fas fa-eye" id="bulkPwEyeIcon"></i>
@@ -1820,53 +1820,12 @@ document.addEventListener('DOMContentLoaded', function(){
 </script>
 
 <script>
-function openSettings(){document.getElementById('settingsOverlay').style.display='block';document.getElementById('settingsDrawer').style.right='0';document.body.style.overflow='hidden';if(typeof closeSidebar==='function')closeSidebar();}
-function closeSettings(){document.getElementById('settingsOverlay').style.display='none';document.getElementById('settingsDrawer').style.right='-360px';document.body.style.overflow='';}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSettings();});
-let darkMode=localStorage.getItem('rbi_dark')==='1';
-function applyDark(on){document.body.classList.toggle('dark-mode',on);const th=document.getElementById('darkThumb'),tg=document.getElementById('darkToggle');if(th)th.style.left=on?'21px':'3px';if(tg)tg.style.background=on?'#3b82f6':'#475569';document.documentElement.style.setProperty('--bg',on?'#0f172a':'#f8fafc');document.documentElement.style.setProperty('--card',on?'#1e293b':'#ffffff');document.documentElement.style.setProperty('--border',on?'#334155':'#e2e8f0');document.documentElement.style.setProperty('--text',on?'#e2e8f0':'#0f172a');}
-applyDark(darkMode);
-function toggleDarkMode(){darkMode=!darkMode;localStorage.setItem('rbi_dark',darkMode?'1':'0');applyDark(darkMode);}
-let zoomLvl=parseFloat(localStorage.getItem('rbi_zoom')||'1');
-function applyZoom(){document.body.style.zoom=zoomLvl;const l=document.getElementById('zoomLabel');if(l)l.textContent=Math.round(zoomLvl*100)+'%';}
-applyZoom();
-function pageZoom(f){zoomLvl=parseFloat(Math.min(Math.max(zoomLvl*f,0.6),1.5).toFixed(2));localStorage.setItem('rbi_zoom',zoomLvl);applyZoom();}
-function resetZoom(){zoomLvl=1;localStorage.setItem('rbi_zoom','1');applyZoom();}
-</script>
-<script>
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sidebarOverlay').classList.add('open');document.body.style.overflow='hidden';}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('open');document.body.style.overflow='';}
 document.getElementById('menuToggle').addEventListener('click',openSidebar);
 </script>
 
-<div id="settingsOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1100" onclick="closeSettings()"></div>
-<div id="settingsDrawer" style="position:fixed;top:0;right:-360px;width:340px;height:100vh;background:#0f172a;z-index:1101;transition:right .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,.08)">
-  <div style="padding:20px 20px 14px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-between">
-    <div style="display:flex;align-items:center;gap:10px">
-      <div style="width:32px;height:32px;background:linear-gradient(135deg,#3b82f6,#14b8a6);border-radius:8px;display:flex;align-items:center;justify-content:center"><i class="fas fa-gear" style="color:#fff;font-size:13px"></i></div>
-      <div><div style="font-family:Syne,sans-serif;font-size:14px;font-weight:800;color:#fff">Settings</div><div style="font-size:11px;color:rgba(255,255,255,.4)">ProjectRBI Barangay 410</div></div>
-    </div>
-    <button onclick="closeSettings()" style="width:28px;height:28px;background:rgba(255,255,255,.08);border:none;border-radius:7px;color:rgba(255,255,255,.6);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center"><i class="fas fa-times"></i></button>
-  </div>
-  <div style="flex:1;overflow-y:auto;padding:16px">
-    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Appearance</div>
-    <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.05);border-radius:10px;padding:12px 14px;margin-bottom:16px">
-      <div style="display:flex;align-items:center;gap:10px"><div style="width:30px;height:30px;background:rgba(255,255,255,.08);border-radius:8px;display:flex;align-items:center;justify-content:center"><i class="fas fa-circle-half-stroke" style="color:#94a3b8;font-size:13px"></i></div><div><div style="font-size:13px;font-weight:600;color:#fff">Dark Mode</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Toggle dark/light theme</div></div></div>
-      <button id="darkToggle" onclick="toggleDarkMode()" style="width:42px;height:24px;border-radius:12px;background:#475569;border:none;cursor:pointer;position:relative;transition:background .25s;flex-shrink:0"><span id="darkThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;transition:left .25s"></span></button>
-    </div>
-    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Actions</div>
-    <button onclick="window.print()" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer">
-      <div style="width:30px;height:30px;background:rgba(255,255,255,.08);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-print" style="color:#94a3b8;font-size:13px"></i></div>
-      <div style="text-align:left"><div style="font-size:13px;font-weight:600;color:#fff">Print Page</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Print current view</div></div>
-    </button>
-  </div>
-  <div style="padding:14px 16px;border-top:1px solid rgba(255,255,255,.07)">
-    <a href="logout.php" style="display:flex;align-items:center;gap:10px;background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.25);border-radius:10px;padding:12px 14px;text-decoration:none">
-      <div style="width:30px;height:30px;background:rgba(244,63,94,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-right-from-bracket" style="color:#f43f5e;font-size:13px"></i></div>
-      <div><div style="font-size:13px;font-weight:700;color:#f43f5e">Logout</div><div style="font-size:11px;color:rgba(244,63,94,.6)">End your session</div></div>
-    </a>
-  </div>
-</div>
+
 <!-- ══ CONFIRM REGISTRATION MODAL ══════════════════════════════════════════ -->
 <div id="confirmOverlay" onclick="hideConfirmPanel()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1200;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)"></div>
 <div id="confirmModal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1201;width:100%;max-width:420px;padding:0 1rem;box-sizing:border-box">
@@ -1917,11 +1876,3 @@ document.getElementById('menuToggle').addEventListener('click',openSidebar);
 
 </body>
 </html>
-
-
-
-
-
-
-
-

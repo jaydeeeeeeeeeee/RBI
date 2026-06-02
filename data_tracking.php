@@ -303,6 +303,16 @@ $_dt_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
     .btn-success:hover { background: linear-gradient(135deg,#059669 0%,#047857 100%); color:#fff; }
     .btn-danger  { background: linear-gradient(135deg,#ef4444 0%,#dc2626 100%); color:#fff; border:none; }
     .btn-danger:hover  { background: linear-gradient(135deg,#dc2626 0%,#b91c1c 100%); color:#fff; }
+    .btn-delete {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 6px 12px; min-width: 86px; border-radius: 8px;
+      background: linear-gradient(135deg,#ef4444 0%,#dc2626 100%);
+      color: #fff; border: none; font-size: 12px; font-weight: 600;
+      text-transform: none;
+    }
+    .btn-delete:hover {
+      background: linear-gradient(135deg,#dc2626 0%,#b91c1c 100%);
+    }
     .btn-warning { background: linear-gradient(135deg,#f59e0b 0%,#d97706 100%); color:#fff; border:none; }
     .btn-warning:hover { background: linear-gradient(135deg,#d97706 0%,#b45309 100%); color:#fff; }
     .btn-outline {
@@ -539,7 +549,7 @@ $_dt_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="delete_cert_request">
                     <input type="hidden" name="cert_id" value="<?= $cr['id'] ?>">
-                    <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button>
+                    <button type="submit" class="btn btn-delete"><i class="fas fa-trash"></i> Delete</button>
                   </form>
                 </div>
               </td>
@@ -618,7 +628,7 @@ $_dt_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
                     <?= csrf_field() ?>
                     <input type="hidden" name="action" value="delete_request">
                     <input type="hidden" name="req_id" value="<?= $req['id'] ?>">
-                    <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button>
+                    <button type="submit" class="btn btn-delete"><i class="fas fa-trash"></i> Delete</button>
                   </form>
                 </div>
               </td>
@@ -884,12 +894,6 @@ $_dt_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
       </div>
     </a>
   </div>
-  <div style="padding:12px 16px;border-top:1px solid rgba(255,255,255,.07)">
-    <button onclick="printDT()" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer">
-      <div style="width:30px;height:30px;background:rgba(255,255,255,.08);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-print" style="color:#94a3b8;font-size:13px"></i></div>
-      <div style="text-align:left"><div style="font-size:13px;font-weight:600;color:#fff">Print Report</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Print the current document list</div></div>
-    </button>
-  </div>
   <div style="padding:14px 16px;border-top:1px solid rgba(255,255,255,.07)">
     <a href="logout.php" style="display:flex;align-items:center;gap:10px;background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.25);border-radius:10px;padding:12px 14px;text-decoration:none">
       <div style="width:30px;height:30px;background:rgba(244,63,94,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-right-from-bracket" style="color:#f43f5e;font-size:13px"></i></div>
@@ -975,14 +979,8 @@ function openSidebar()  { document.getElementById('sidebar').classList.add('open
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); document.body.style.overflow=''; }
 function openSettings() { document.getElementById('settingsOverlay').style.display='block'; document.getElementById('settingsDrawer').style.right='0'; document.body.style.overflow='hidden'; closeSidebar(); }
 function closeSettings(){ document.getElementById('settingsOverlay').style.display='none';  document.getElementById('settingsDrawer').style.right='-360px'; document.body.style.overflow=''; }
-function printDT(){ closeSettings(); setTimeout(()=>window.print(), 350); }
 document.getElementById('menuToggle').addEventListener('click', openSidebar);
 document.addEventListener('keydown', e => { if(e.key==='Escape') closeSettings(); });
 </script>
 </body>
 </html>
-
-
-
-
-

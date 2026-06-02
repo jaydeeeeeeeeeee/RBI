@@ -5,6 +5,7 @@ $admin = $_SESSION['admin'];
 include 'role_helper.php';
 include 'Residents_DB.php';
 
+
 // Auto-create table
 $conn->query("CREATE TABLE IF NOT EXISTS senior_citizens (
     id             INT AUTO_INCREMENT PRIMARY KEY,
@@ -29,7 +30,6 @@ if($_SERVER['REQUEST_METHOD']==='POST' && $can_edit){
     csrf_verify();
     $action = $_POST['action'] ?? '';
 
-    // Backfill: sync all existing residents aged 60+ into senior_citizens
     if($action === 'sync_from_residents' && $is_captain){
         $all = $conn->query("SELECT first_name,middle_name,last_name,gender,birthdate,perm_address,mobile FROM residents WHERE birthdate IS NOT NULL AND birthdate != '' AND (is_senior='Yes' OR TIMESTAMPDIFF(YEAR,birthdate,CURDATE())>=60)");
         $added = 0;
@@ -56,7 +56,6 @@ if($_SERVER['REQUEST_METHOD']==='POST' && $can_edit){
     }
 
     if($action === 'edit'){
-        // Verify password before saving
         $pw_attempt = $_POST['confirm_password'] ?? '';
         $adm_esc    = mysqli_real_escape_string($conn, $admin);
         $adm_row    = $conn->query("SELECT password FROM admins WHERE username='$adm_esc' LIMIT 1")->fetch_assoc();
@@ -108,6 +107,17 @@ $sq = $search ? "WHERE (last_name LIKE '%".mysqli_real_escape_string($conn,$sear
                   OR address LIKE '%".mysqli_real_escape_string($conn,$search)."%')" : "";
 $list = $conn->query("SELECT * FROM senior_citizens $sq ORDER BY last_name, first_name");
 
+// Prepare printable data
+$print_seniors = $conn->query("SELECT sc.*, COALESCE(b.cnt,0) AS borrowed_count, COALESCE(b.items,'') AS borrowed_items, b.last_borrow_date
+  FROM senior_citizens sc
+  LEFT JOIN (
+    SELECT senior_citizen_id, COUNT(*) AS cnt, GROUP_CONCAT(CONCAT(e.item_code,' - ',e.item_name) SEPARATOR '; ') AS items, MAX(borrow_date) AS last_borrow_date
+    FROM equipment_borrowing eb JOIN equipment e ON eb.equipment_id=e.id
+    WHERE eb.senior_citizen_id IS NOT NULL
+    GROUP BY senior_citizen_id
+  ) b ON b.senior_citizen_id = sc.id
+  WHERE sc.status='Active' ORDER BY sc.last_name, sc.first_name");
+
 // ── Birthday lists ───────────────────────────────────────────────────────────
 $bday_today = []; $bday_this_month = [];
 $br = $conn->query("SELECT last_name,first_name,birth_month,birth_day,birth_year FROM senior_citizens WHERE status='Active' ORDER BY birth_month,birth_day");
@@ -136,12 +146,262 @@ function sc_age($m,$d,$y){
 .page-top h1{color:#fff;font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800}
 .page-top p{color:rgba(255,255,255,.45);font-size:12px;margin-top:2px}
 main{padding:1.5rem;max-width:1200px;margin:0 auto}
-@media print{
-  header.topbar,.sidebar,.sidebar-overlay,.page-hero,footer,
-  #settingsOverlay,#settingsDrawer,.btn,button:not(.no-hide){display:none!important}
-  body{background:#fff}
-  main{padding:0;max-width:100%}
+
+/* ═══════════════════════════════════════════════════
+   PRINT STYLES — Senior Citizens Report
+   ═══════════════════════════════════════════════════ */
+@media print {
+
+  /* Hide everything on the page */
+  body * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Show ONLY the print report container */
+  .sc-print,
+  .sc-print * {
+    display: revert !important;
+    visibility: visible !important;
+  }
+
+  /* Root container */
+  .sc-print {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+    font-family: 'Times New Roman', Times, serif !important;
+    font-size: 9pt !important;
+    line-height: 1.4 !important;
+  }
+
+  /* ── Page setup ── */
+  @page {
+    size: A4 portrait;
+    margin: 12mm 12mm 14mm 12mm;
+  }
+
+  /* ── Header band ── */
+  .sc-print .header {
+    display: flex !important;
+    align-items: center !important;
+    gap: 14px !important;
+    padding: 8px 0 10px !important;
+    margin-bottom: 14px !important;
+    border-top: 2.5px solid #000 !important;
+    border-bottom: 2.5px solid #000 !important;
+  }
+
+  .sc-print .print-header-logos {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .sc-print .hdr-img {
+    display: inline-block !important;
+    width: 44px !important;
+    height: 44px !important;
+    object-fit: contain !important;
+  }
+
+  .sc-print .print-header-text {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1px !important;
+    flex: 1 !important;
+    padding-left: 8px !important;
+    border-left: 1.5px solid #ccc !important;
+  }
+
+  .sc-print .print-header-text p {
+    margin: 0 !important;
+    font-size: 8.5pt !important;
+    color: #333 !important;
+  }
+
+  .sc-print .brgy-name {
+    font-size: 11.5pt !important;
+    font-weight: 700 !important;
+    color: #000 !important;
+    margin-bottom: 2px !important;
+  }
+
+  /* Decorative title line with rules */
+  .sc-print .doc-title-line {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin: 5px 0 3px !important;
+  }
+
+  .sc-print .doc-title-line::before,
+  .sc-print .doc-title-line::after {
+    content: '' !important;
+    display: block !important;
+    flex: 1 !important;
+    height: 1px !important;
+    background: #000 !important;
+  }
+
+  .sc-print .doc-title {
+    font-size: 13pt !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .07em !important;
+    white-space: nowrap !important;
+    color: #000 !important;
+  }
+
+  .sc-print .doc-sub {
+    font-size: 8pt !important;
+    color: #555 !important;
+  }
+
+  /* ── Summary section ── */
+  .sc-print .print-body {
+    display: block !important;
+    margin-bottom: 14px !important;
+    width: 100% !important;
+  }
+
+  .sc-print .print-col-left {
+    display: block !important;
+    width: 260px !important;
+  }
+
+  .sc-print .rbi-card {
+    display: block !important;
+    border: 1px solid #000 !important;
+    border-radius: 0 !important;
+    padding: 10px 12px !important;
+    margin-bottom: 14px !important;
+    page-break-inside: avoid !important;
+    box-shadow: none !important;
+  }
+
+  .sc-print .section-title {
+    font-size: 9pt !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .05em !important;
+    color: #000 !important;
+    border-bottom: 1.5px solid #000 !important;
+    padding-bottom: 4px !important;
+    margin: 0 0 10px !important;
+  }
+
+  /* Summary table (small) */
+  .sc-print .print-col-left table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 8.5pt !important;
+    table-layout: auto !important;
+  }
+
+  .sc-print .print-col-left td {
+    border: 1px solid #999 !important;
+    padding: 4px 8px !important;
+    vertical-align: middle !important;
+  }
+
+  .sc-print .print-col-left td:last-child {
+    text-align: center !important;
+    font-weight: 700 !important;
+    width: 50px !important;
+  }
+
+  /* ── Main details table ── */
+  .sc-print .rbi-card > table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 8pt !important;
+    /* Fixed layout is KEY — prevents columns from overflowing */
+    table-layout: fixed !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+
+  /* Column width distribution (must total 100%) */
+  .sc-print .rbi-card > table colgroup col:nth-child(1) { width: 4% !important; }
+  .sc-print .rbi-card > table colgroup col:nth-child(2) { width: 22% !important; }
+  .sc-print .rbi-card > table colgroup col:nth-child(3) { width: 6% !important; }
+  .sc-print .rbi-card > table colgroup col:nth-child(4) { width: 13% !important; }
+  .sc-print .rbi-card > table colgroup col:nth-child(5) { width: 7% !important; }
+  .sc-print .rbi-card > table colgroup col:nth-child(6) { width: 34% !important; }
+  .sc-print .rbi-card > table colgroup col:nth-child(7) { width: 14% !important; }
+
+  .sc-print thead {
+    display: table-header-group !important;
+  }
+
+  .sc-print thead th {
+    background: #1e293b !important;
+    color: #fff !important;
+    font-size: 7.5pt !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .04em !important;
+    padding: 5px 6px !important;
+    border: 1px solid #000 !important;
+    text-align: left !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .sc-print tbody td {
+    border: 1px solid #ccc !important;
+    padding: 5px 6px !important;
+    vertical-align: top !important;
+    font-size: 8pt !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    white-space: normal !important;
+  }
+
+  .sc-print tbody tr:nth-child(even) td {
+    background: #f8f8f8 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .sc-print td.center,
+  .sc-print th.center {
+    text-align: center !important;
+  }
+
+  /* ── Footer ── */
+  .sc-print .foot {
+    display: block !important;
+    text-align: center !important;
+    font-size: 7.5pt !important;
+    font-style: italic !important;
+    color: #555 !important;
+    border-top: 1px solid #000 !important;
+    padding-top: 5px !important;
+    margin-top: 18px !important;
+  }
+
+  /* Hide screen-only elements even if they leak in */
+  header.topbar,
+  .sidebar,
+  .sidebar-overlay,
+  footer,
+  main,
+  #settingsOverlay,
+  #settingsDrawer,
+  .modal-overlay {
+    display: none !important;
+  }
 }
+/* end @media print */
+
 .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.25rem}
 @media(max-width:600px){.stat-row{grid-template-columns:1fr 1fr}}
 .scard{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:.85rem;text-align:center}
@@ -151,13 +411,9 @@ main{padding:1.5rem;max-width:1200px;margin:0 auto}
 .tab{padding:8px 16px;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .2s;background:none;border-top:none;border-left:none;border-right:none;font-family:'Inter',sans-serif}
 .tab.active{color:#10b981;border-bottom-color:#10b981}
 .tab-content{display:none}.tab-content.active{display:block}
-
-/* Search bar */
 .search-row{display:flex;gap:10px;align-items:center;margin-bottom:1rem;flex-wrap:wrap}
 .search-row input{flex:1;min-width:200px;padding:9px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:Inter,sans-serif;outline:none}
 .search-row input:focus{border-color:#10b981}
-
-/* Table */
 .sc-table-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;min-width:860px;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05)}
 thead th{background:#f8fafc;padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;border-bottom:1.5px solid #e2e8f0}
@@ -165,16 +421,12 @@ tbody td{padding:10px 14px;border-bottom:1px solid #f1f5f9;font-size:13px;color:
 tbody tr:last-child td{border-bottom:none}
 tbody tr:hover{background:#f8fafc}
 tbody tr.birthday-today{background:#f0fdf4}
-
-/* Badges */
 .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700}
 .badge-alive{background:#dcfce7;color:#15803d}
 .badge-deceased{background:#fee2e2;color:#dc2626}
 .badge-bday{background:#fef9c3;color:#a16207;margin-left:6px}
 .badge-today{background:#fde68a;color:#92400e;margin-left:6px}
 .age-pill{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#eff6ff;color:#1d4ed8}
-
-/* Birthday tab */
 .bday-section{margin-bottom:1.5rem}
 .bday-section-title{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem}
 .bday-card{display:flex;align-items:center;gap:12px;border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;margin-bottom:8px}
@@ -184,8 +436,6 @@ tbody tr.birthday-today{background:#f0fdf4}
 .bday-avatar.month-av{background:#f0fdf4}
 .bday-name{font-size:13px;font-weight:600;color:#0f172a}
 .bday-info{font-size:11px;color:#64748b;margin-top:2px}
-
-/* Modal */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center}
 .modal-overlay.open{display:flex}
 .modal-box{background:#fff;border-radius:14px;padding:2rem;width:100%;max-width:560px;max-height:90vh;overflow-y:auto}
@@ -221,6 +471,87 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
   </div>
 </header>
 
+<!-- ═══════════════════════════════════════════════════════════════
+     PRINTABLE SENIOR CITIZENS REPORT  (hidden on screen, visible on print)
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="sc-print" style="display:none">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="print-header-logos">
+      <img src="images/logo_bagong_pilipinas.png" class="hdr-img" alt="Bagong Pilipinas">
+      <img src="images/lungsod_ng_manila_logo.png" class="hdr-img" alt="City of Manila">
+      <img src="images/brgy410_logo.png"           class="hdr-img" alt="Barangay 410">
+    </div>
+    <div class="print-header-text">
+      <p class="doc-sub">Republic of the Philippines &nbsp;·&nbsp; City of Manila</p>
+      <p class="brgy-name"><?= htmlspecialchars(defined('BRGY_NAME') ? BRGY_NAME : 'Barangay 410') ?></p>
+      <div class="doc-title-line"><span class="doc-title">Senior Citizens Register</span></div>
+      <p class="doc-sub">Generated: <?= date('F j, Y \a\t g:i A') ?></p>
+    </div>
+  </div>
+
+  <!-- Summary card -->
+  <div class="print-body">
+    <div class="print-col-left">
+      <div class="rbi-card">
+        <div class="section-title">Summary</div>
+        <table>
+          <tbody>
+            <tr><td>Total Registered</td><td><?= $total ?></td></tr>
+            <tr><td>Active / Alive</td><td><?= $active ?></td></tr>
+            <tr><td>Deceased</td><td><?= $deceased ?></td></tr>
+            <tr><td>Birthdays this month</td><td><?= count($bday_this_month) + count($bday_today) ?></td></tr>
+            <tr><td>Birthdays today</td><td><?= count($bday_today) ?></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Details table -->
+  <div class="rbi-card">
+    <div class="section-title">Senior Citizen Details (Active)</div>
+    <table>
+      <!-- colgroup drives the fixed column widths -->
+      <colgroup>
+        <col><col><col><col><col><col><col>
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="center">#</th>
+          <th>Name</th>
+          <th class="center">Age</th>
+          <th>Contact</th>
+          <th class="center">Borrowed</th>
+          <th>Items Borrowed</th>
+          <th class="center">Last Borrow</th>
+        </tr>
+      </thead>
+      <tbody>
+      <?php if($print_seniors && $print_seniors->num_rows): $i=1; while($s = $print_seniors->fetch_assoc()): ?>
+        <tr>
+          <td class="center"><?= $i ?></td>
+          <td><?= htmlspecialchars($s['last_name'] . ', ' . $s['first_name'] . (trim($s['middle_name']) ? ' ' . $s['middle_name'] : '')) ?></td>
+          <td class="center"><?= sc_age($s['birth_month'], $s['birth_day'], $s['birth_year']) ?></td>
+          <td><?= htmlspecialchars($s['contact_number'] ?? '') ?></td>
+          <td class="center"><?= (int)$s['borrowed_count'] ?></td>
+          <td><?= htmlspecialchars($s['borrowed_items']) ?></td>
+          <td class="center"><?= htmlspecialchars($s['last_borrow_date'] ?? '') ?></td>
+        </tr>
+      <?php $i++; endwhile; else: ?>
+        <tr><td colspan="7" style="text-align:center;padding:12px;font-style:italic;color:#666">No active senior citizen records found.</td></tr>
+      <?php endif; ?>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="foot">
+    ProjectRBI &mdash; <?= htmlspecialchars(defined('BRGY_NAME') ? BRGY_NAME : 'Barangay 410') ?> &nbsp;&middot;&nbsp; Printed <?= date('F j, Y') ?>
+  </div>
+</div>
+<!-- end .sc-print -->
+
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 <aside class="sidebar" id="sidebar" style="overflow-y:auto;overflow-x:hidden">
   <div class="sidebar-head">
@@ -232,7 +563,6 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
     </div>
     <button class="sidebar-close-btn" onclick="closeSidebar()"><i class="fas fa-times"></i></button>
   </div>
-  <!-- Senior Citizens stats -->
   <div style="padding:12px 10px 10px;border-bottom:1px solid rgba(255,255,255,.07)">
     <div class="sidebar-label" style="margin-bottom:7px">Senior Citizens Summary</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
@@ -285,22 +615,18 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
     <p style="color:rgba(255,255,255,.6);font-size:.84rem;margin:0">Senior Citizen Records &amp; Birthday Tracking</p>
   </div>
 </div>
+
 <main style="padding-top:1.75rem">
   <?php if($msg):?><div class="alert alert-success" style="margin-bottom:1rem"><i class="fas fa-check-circle"></i> <?=$msg?></div><?php endif;?>
   <?php if($err):?><div class="alert alert-error" style="margin-bottom:1rem"><i class="fas fa-exclamation-triangle"></i> <?=htmlspecialchars($err)?></div><?php endif;?>
 
-  <!-- Stats -->
   <div class="stat-row">
     <div class="scard"><div class="scard-num" style="color:#0f172a"><?=$total?></div><div class="scard-lbl">Total Registered</div></div>
     <div class="scard"><div class="scard-num" style="color:#10b981"><?=$active?></div><div class="scard-lbl">Active / Alive</div></div>
     <div class="scard"><div class="scard-num" style="color:#f43f5e"><?=$deceased?></div><div class="scard-lbl">Deceased</div></div>
-    <div class="scard">
-      <div class="scard-num" style="color:#f59e0b"><?=$bday_month?></div>
-      <div class="scard-lbl">Birthdays This Month</div>
-    </div>
+    <div class="scard"><div class="scard-num" style="color:#f59e0b"><?=$bday_month?></div><div class="scard-lbl">Birthdays This Month</div></div>
   </div>
 
-  <!-- Tabs -->
   <div class="tabs">
     <button class="tab active" onclick="switchTab('masterlist',this)"><i class="fas fa-list"></i> Masterlist</button>
     <button class="tab" onclick="switchTab('birthdays',this)">
@@ -313,7 +639,6 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
 
   <!-- MASTERLIST TAB -->
   <div id="tab-masterlist" class="tab-content active">
-
     <form method="GET" class="search-row">
       <input type="text" name="search" placeholder="Search by name or address..." value="<?=htmlspecialchars($search)?>">
       <button type="submit" class="btn btn-primary" style="white-space:nowrap"><i class="fas fa-search"></i> Search</button>
@@ -325,22 +650,16 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
       <table>
         <thead>
           <tr>
-            <th>#</th>
-            <th>Full Name</th>
-            <th>Age</th>
-            <th>Birthdate</th>
-            <th>Gender</th>
-            <th>Address</th>
-            <th>Contact</th>
-            <th>Status</th>
+            <th>#</th><th>Full Name</th><th>Age</th><th>Birthdate</th>
+            <th>Gender</th><th>Address</th><th>Contact</th><th>Status</th>
             <?php if($can_edit):?><th>Actions</th><?php endif;?>
           </tr>
         </thead>
         <tbody>
         <?php $n=1; while($row=$list->fetch_assoc()):
-            $full = htmlspecialchars($row['last_name'].', '.$row['first_name'].($row['middle_name']?' '.$row['middle_name']:''));
-            $age  = sc_age($row['birth_month'],$row['birth_day'],$row['birth_year']);
-            $bdate = sprintf('%02d/%02d/%04d', $row['birth_month'], $row['birth_day'], $row['birth_year']);
+            $full  = htmlspecialchars($row['last_name'].', '.$row['first_name'].($row['middle_name']?' '.$row['middle_name']:''));
+            $age   = sc_age($row['birth_month'],$row['birth_day'],$row['birth_year']);
+            $bdate = sprintf('%02d/%02d/%04d',$row['birth_month'],$row['birth_day'],$row['birth_year']);
             $is_today = ($row['birth_month']==$cur_m && $row['birth_day']==$cur_d);
             $is_month = ($row['birth_month']==$cur_m);
         ?>
@@ -348,27 +667,18 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
           <td style="color:#94a3b8;font-size:11px"><?=$n++?></td>
           <td>
             <?=$full?>
-            <?php if($is_today):?>
-              <span class="badge badge-today">🎉 Today!</span>
-            <?php elseif($is_month):?>
-              <span class="badge badge-bday">🎂 This month</span>
-            <?php endif;?>
+            <?php if($is_today):?><span class="badge badge-today">🎉 Today!</span>
+            <?php elseif($is_month):?><span class="badge badge-bday">🎂 This month</span><?php endif;?>
           </td>
           <td><span class="age-pill"><?=$age?></span></td>
           <td style="font-size:12px;color:#64748b"><?=$bdate?></td>
           <td style="font-size:12px"><?=htmlspecialchars($row['gender']??'—')?></td>
           <td style="font-size:12px;max-width:180px"><?=htmlspecialchars($row['address']??'—')?></td>
           <td style="font-size:12px;color:#64748b"><?=htmlspecialchars($row['contact_number']??'—')?></td>
-          <td>
-            <span class="badge <?=$row['status']==='Active'?'badge-alive':'badge-deceased'?>">
-              <?=$row['status']==='Active'?'Alive':'Deceased'?>
-            </span>
-          </td>
+          <td><span class="badge <?=$row['status']==='Active'?'badge-alive':'badge-deceased'?>"><?=$row['status']==='Active'?'Alive':'Deceased'?></span></td>
           <?php if($can_edit):?>
           <td style="white-space:nowrap">
-            <button class="btn btn-outline btn-sm" onclick="openEdit(<?=htmlspecialchars(json_encode($row))?>)">
-              <i class="fas fa-pen"></i> Edit
-            </button>
+            <button class="btn btn-outline btn-sm" onclick="openEdit(<?=htmlspecialchars(json_encode($row))?>)"><i class="fas fa-pen"></i> Edit</button>
             <?php if($is_captain):?>
             <form method="POST" style="display:inline" onsubmit="return confirm('Delete this record permanently?')">
               <?= csrf_field() ?>
@@ -394,8 +704,6 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
 
   <!-- BIRTHDAY TAB -->
   <div id="tab-birthdays" class="tab-content">
-
-    <!-- Today's birthdays -->
     <div class="bday-section">
       <div class="bday-section-title">
         <i class="fas fa-star" style="color:#f59e0b"></i> Today's Birthdays
@@ -405,9 +713,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
       </div>
       <?php if(count($bday_today)===0):?>
         <p style="color:#94a3b8;font-size:13px;padding:.5rem 0">No birthdays today.</p>
-      <?php else: foreach($bday_today as $r):
-          $age = sc_age($r['birth_month'],$r['birth_day'],$r['birth_year']);
-      ?>
+      <?php else: foreach($bday_today as $r): $age = sc_age($r['birth_month'],$r['birth_day'],$r['birth_year']); ?>
       <div class="bday-card today">
         <div class="bday-avatar today-av">🎉</div>
         <div style="flex:1">
@@ -419,7 +725,6 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
       <?php endforeach; endif;?>
     </div>
 
-    <!-- This month's other birthdays -->
     <div class="bday-section">
       <div class="bday-section-title">
         <i class="fas fa-calendar-days" style="color:#10b981"></i> Other Birthdays This Month (<?=date('F')?>)
@@ -429,17 +734,12 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
       </div>
       <?php if(count($bday_this_month)===0):?>
         <p style="color:#94a3b8;font-size:13px;padding:.5rem 0">No other birthdays this month.</p>
-      <?php else: foreach($bday_this_month as $r):
-          $age = sc_age($r['birth_month'],$r['birth_day'],$r['birth_year']);
-          $days_until = (int)(new DateTime(date('Y').'-'.$r['birth_month'].'-'.$r['birth_day']))->diff(new DateTime())->days;
-      ?>
+      <?php else: foreach($bday_this_month as $r): $age = sc_age($r['birth_month'],$r['birth_day'],$r['birth_year']); ?>
       <div class="bday-card">
         <div class="bday-avatar month-av">🎂</div>
         <div style="flex:1">
           <div class="bday-name"><?=htmlspecialchars($r['last_name'].', '.$r['first_name'])?></div>
-          <div class="bday-info">
-            <?=date('F j', mktime(0,0,0,$r['birth_month'],$r['birth_day'],date('Y')))?> · Turns <?=$age?>
-          </div>
+          <div class="bday-info"><?=date('F j', mktime(0,0,0,$r['birth_month'],$r['birth_day'],date('Y')))?> · Turns <?=$age?></div>
         </div>
       </div>
       <?php endforeach; endif;?>
@@ -581,67 +881,64 @@ function closeSidebar(){document.getElementById('sidebar').classList.remove('ope
 document.getElementById('menuToggle').addEventListener('click',openSidebar);
 function openSettings(){document.getElementById('settingsOverlay').style.display='block';document.getElementById('settingsDrawer').style.right='0';document.body.style.overflow='hidden';if(typeof closeSidebar==='function')closeSidebar();}
 function closeSettings(){document.getElementById('settingsOverlay').style.display='none';document.getElementById('settingsDrawer').style.right='-360px';document.body.style.overflow='';}
-function printSC(){closeSettings();setTimeout(()=>window.print(),350);}
+
+function printSC(){
+  closeSettings();
+  // Make the print div visible so the browser captures it
+  var el = document.querySelector('.sc-print');
+  el.style.display = 'block';
+  setTimeout(function(){
+    window.print();
+    // Hide again after print dialog closes
+    setTimeout(function(){ el.style.display = 'none'; }, 500);
+  }, 350);
+}
+
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSettings();closeEditPwModal();}});
 
-function switchTab(name, el){
-    document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-    document.getElementById('tab-'+name).classList.add('active');
-    el.classList.add('active');
+function switchTab(name,el){
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  el.classList.add('active');
 }
 
 function openEditPwModal(){
-  document.getElementById('editPwInput').value = '';
-  const inp = document.getElementById('editPwInput');
-  inp.type = 'password';
-  document.getElementById('editPwEyeIcon').className = 'fas fa-eye';
+  document.getElementById('editPwInput').value='';
+  var inp=document.getElementById('editPwInput');
+  inp.type='password';
+  document.getElementById('editPwEyeIcon').className='fas fa-eye';
   document.getElementById('editPwModal').classList.add('open');
-  setTimeout(()=>inp.focus(), 120);
+  setTimeout(()=>inp.focus(),120);
 }
-function closeEditPwModal(){
-  document.getElementById('editPwModal').classList.remove('open');
-}
+function closeEditPwModal(){document.getElementById('editPwModal').classList.remove('open');}
 function toggleEditPw(){
-  const inp = document.getElementById('editPwInput');
-  const ico = document.getElementById('editPwEyeIcon');
+  var inp=document.getElementById('editPwInput'),ico=document.getElementById('editPwEyeIcon');
   if(inp.type==='password'){inp.type='text';ico.className='fas fa-eye-slash';}
   else{inp.type='password';ico.className='fas fa-eye';}
 }
 function confirmEditSave(){
-  const pw = document.getElementById('editPwInput').value;
+  var pw=document.getElementById('editPwInput').value;
   if(!pw){document.getElementById('editPwInput').style.borderColor='#f43f5e';return;}
-  document.getElementById('edit_confirm_pw').value = pw;
+  document.getElementById('edit_confirm_pw').value=pw;
   document.getElementById('editPwModal').classList.remove('open');
   document.getElementById('editForm').submit();
 }
 
 function openEdit(row){
-    document.getElementById('edit_id').value  = row.id;
-    document.getElementById('edit_ln').value  = row.last_name;
-    document.getElementById('edit_fn').value  = row.first_name;
-    document.getElementById('edit_mn').value  = row.middle_name || '';
-    document.getElementById('edit_gen').value = row.gender || '';
-    document.getElementById('edit_bm').value  = row.birth_month;
-    document.getElementById('edit_bd').value  = row.birth_day;
-    document.getElementById('edit_by').value  = row.birth_year;
-    document.getElementById('edit_con').value = row.contact_number || '';
-    document.getElementById('edit_addr').value= row.address || '';
-    document.getElementById('edit_status').value = row.status;
-    document.getElementById('editModal').classList.add('open');
+  document.getElementById('edit_id').value   = row.id;
+  document.getElementById('edit_ln').value   = row.last_name;
+  document.getElementById('edit_fn').value   = row.first_name;
+  document.getElementById('edit_mn').value   = row.middle_name  || '';
+  document.getElementById('edit_gen').value  = row.gender       || '';
+  document.getElementById('edit_bm').value   = row.birth_month;
+  document.getElementById('edit_bd').value   = row.birth_day;
+  document.getElementById('edit_by').value   = row.birth_year;
+  document.getElementById('edit_con').value  = row.contact_number || '';
+  document.getElementById('edit_addr').value = row.address       || '';
+  document.getElementById('edit_status').value = row.status;
+  document.getElementById('editModal').classList.add('open');
 }
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-

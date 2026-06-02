@@ -674,15 +674,17 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif}
   <?php elseif(!empty($error)):?>
   <div class="err-box"><i class="fas fa-exclamation-circle"></i><?=htmlspecialchars($error)?></div>
   <?php endif;?>
-  <form action="admin.php" method="POST" id="loginForm">
+  <form action="admin.php" method="POST" id="loginForm" autocomplete="off">
+    <input type="text" name="fake_username" autocomplete="username" style="position:absolute;top:-9999px;left:-9999px;opacity:0;" tabindex="-1">
+    <input type="password" name="fake_password" autocomplete="new-password" style="position:absolute;top:-9999px;left:-9999px;opacity:0;" tabindex="-1">
     <div class="form-group">
       <label>Username</label>
-      <input type="text" name="username" class="form-input" placeholder="Enter your username" <?=$isLocked?'disabled':''?> required autocomplete="off"/>
+      <input type="text" name="username" class="form-input" placeholder="Enter your username" <?=$isLocked?'disabled':''?> required autocomplete="off" autocapitalize="none" spellcheck="false"/>
     </div>
     <div class="form-group">
       <label>Password</label>
       <div class="input-wrap">
-        <input type="password" id="loginPw" name="password" class="form-input has-eye" placeholder="Enter your password" <?=$isLocked?'disabled':''?> required autocomplete="new-password"/>
+        <input type="password" id="loginPw" name="password" class="form-input has-eye" placeholder="Enter your password" <?=$isLocked?'disabled':''?> required autocomplete="new-password" autocapitalize="none" spellcheck="false"/>
         <button type="button" class="eye-btn" onclick="togglePw()"><i class="fas fa-eye" id="eyeIcon"></i></button>
       </div>
     </div>

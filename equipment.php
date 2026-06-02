@@ -72,7 +72,6 @@ if (isset($_POST['borrow_submit'])) {
     $purpose       = $conn->real_escape_string($_POST['purpose']);
     if ($purpose === 'Others') $purpose = $conn->real_escape_string($_POST['other_purpose'] ?? 'Others');
 
-    // Check if senior citizen
     $sc = $conn->query("SELECT id, contact_number FROM senior_citizens
                         WHERE status='Active' AND CONCAT(last_name,', ',first_name)='$borrower_name'");
     $sc_id = null; $sc_contact = '';
@@ -82,7 +81,6 @@ if (isset($_POST['borrow_submit'])) {
         $sc_contact = $sc_row['contact_number'] ?? '';
     }
 
-    // Also allow non-senior residents
     if (!$sc_id) {
         $res = $conn->query("SELECT id FROM residents WHERE is_hidden=0
                              AND CONCAT(first_name,' ',last_name)='$borrower_name' LIMIT 1");
@@ -144,7 +142,6 @@ $seniors_list = [];
 $sr = $conn->query("SELECT last_name,first_name FROM senior_citizens WHERE status='Active' ORDER BY last_name,first_name");
 if ($sr) while ($s = $sr->fetch_assoc()) $seniors_list[] = $s['last_name'] . ', ' . $s['first_name'];
 
-// Also add residents (for non-senior borrowers)
 $residents_list = [];
 $rr = $conn->query("SELECT first_name,last_name FROM residents WHERE is_hidden=0 ORDER BY last_name,first_name");
 if ($rr) while ($r = $rr->fetch_assoc()) $residents_list[] = $r['first_name'] . ' ' . $r['last_name'];
@@ -163,6 +160,18 @@ $history_result = $conn->query("SELECT eb.*,e.item_name FROM equipment_borrowing
     WHERE eb.status='Returned' ORDER BY eb.actual_return DESC LIMIT 50");
 
 $_brgy = defined('BRGY_NAME') ? BRGY_NAME : 'Barangay';
+
+// Print data
+$print_borrowed = $conn->query("SELECT eb.*,e.item_name,e.item_code
+  FROM equipment_borrowing eb JOIN equipment e ON eb.equipment_id=e.id
+  ORDER BY eb.borrow_date DESC");
+$print_equip_tot = $conn->query("SELECT COUNT(*) c, COALESCE(SUM(quantity),0) q, COALESCE(SUM(available),0) avail FROM equipment")->fetch_assoc();
+
+$print_borrower_summary = $conn->query("SELECT eb.borrower_name, eb.borrower_contact, COUNT(*) AS cnt,
+  GROUP_CONCAT(CONCAT(e.item_code,' - ',e.item_name) SEPARATOR '; ') AS items
+  FROM equipment_borrowing eb JOIN equipment e ON eb.equipment_id=e.id
+  GROUP BY eb.borrower_name, eb.borrower_contact
+  ORDER BY cnt DESC");
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -174,21 +183,11 @@ $_brgy = defined('BRGY_NAME') ? BRGY_NAME : 'Barangay';
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 <link rel="stylesheet" href="assets/css/main.css?v=<?=filemtime(__DIR__.'/assets/css/main.css')?>"/>
 <style>
-/* ── PAGE HERO ── */
 .page-hero{background:linear-gradient(to right,rgba(15,23,42,.85),rgba(15,23,42,.55)),url('images/Barangay_officials_410.png') center center/cover no-repeat;padding:2.5rem 2rem;min-height:300px;display:flex;align-items:center}
 .page-hero h1{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:#fff;margin:0 0 .3rem}
 .page-hero p{color:rgba(255,255,255,.55);font-size:.85rem;margin:0 0 1.25rem}
-.hero-nav a{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;font-size:.8rem;font-weight:600;text-decoration:none;margin-right:8px}
-.hero-nav .ghost{border:1.5px solid rgba(255,255,255,.25);color:#fff;background:rgba(255,255,255,.08)}
-.hero-nav .active{border:1.5px solid var(--blue);color:#fff;background:var(--blue)}
-@media print{
-  header.topbar,.sidebar,.sidebar-overlay,.page-hero,footer,
-  #settingsOverlay,#settingsDrawer,.tab-bar,.btn,button{display:none!important}
-  body{background:#fff}
-  main{padding:0;max-width:100%}
-}
 
-main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
+main{padding:1.75rem 2rem;max-width:1600px;width:min(100%,1600px);margin:0 auto}
 
 /* ── STAT ROW ── */
 .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:1.75rem}
@@ -200,17 +199,14 @@ main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
 .stat-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 .stat-val{font-size:26px;font-weight:800;color:var(--text);line-height:1.1}
 
-/* ── SECTION HEADER ── */
 .sec-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;gap:12px;flex-wrap:wrap}
 .sec-hd h2{font-family:'Syne',sans-serif;font-size:1.15rem;font-weight:800;color:var(--text)}
 .section-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px}
 .section-label::after{content:'';flex:1;height:1px;background:var(--border)}
 
-/* ── ADD PANEL ── */
 .add-panel{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.5rem;margin-bottom:1.75rem;display:none}
 .add-panel h3{font-size:.95rem;font-weight:700;color:var(--text);margin-bottom:1rem;display:flex;align-items:center;gap:8px}
 
-/* ── EQUIPMENT GRID ── */
 .equip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
 .equip-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.25rem;display:flex;flex-direction:column;gap:10px;transition:box-shadow .2s,transform .2s;position:relative}
 .equip-card:hover{box-shadow:0 6px 24px rgba(0,0,0,.09);transform:translateY(-2px)}
@@ -233,7 +229,6 @@ main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
 .stock-bar-fill{height:100%;border-radius:4px;transition:width .4s}
 .equip-actions{display:flex;gap:8px;flex-wrap:wrap}
 
-/* ── BORROW MODAL ── */
 .borrow-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1200;align-items:center;justify-content:center}
 .borrow-modal-overlay.open{display:flex}
 .borrow-modal{background:#fff;border-radius:16px;width:100%;max-width:480px;margin:1rem;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;animation:modalIn .22s ease}
@@ -243,12 +238,6 @@ main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
 .bm-close:hover{background:rgba(255,255,255,.2)}
 .bm-body{padding:1.4rem}
 
-/* ── TABS ── */
-.tabs{display:flex;gap:4px;margin-bottom:1.25rem;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:4px;width:fit-content}
-.tab-btn{padding:7px 20px;border-radius:7px;border:none;cursor:pointer;font-size:13px;font-weight:500;background:none;color:var(--muted);transition:all .2s;font-family:'Inter',sans-serif}
-.tab-btn.active{background:var(--navy);color:#fff}
-
-/* ── TABLES ── */
 .tbl-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
 .tbl-hd{background:var(--navy);color:#fff;padding:.9rem 1.25rem;display:flex;align-items:center;justify-content:space-between}
 .tbl-hd h3{font-size:.9rem;font-weight:700}
@@ -265,12 +254,247 @@ main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
 .due-late{background:var(--rose-lt);color:#be123c}
 .no-data{text-align:center;padding:2.5rem 1rem;color:var(--muted)}
 
-/* ── LAYOUT ── */
-.content-layout{display:flex;gap:20px;align-items:flex-start}
-.col-main{flex:2;min-width:0}
-.col-side{flex:1;min-width:280px;max-width:370px;position:sticky;top:70px}
-@media(max-width:900px){.content-layout{flex-direction:column}.col-side{max-width:100%;width:100%;position:static}.stat-row{grid-template-columns:1fr 1fr}}
-@media(max-width:500px){.stat-row{grid-template-columns:1fr}}
+/* ═══════════════════════════════════════════════
+   PRINT STYLES — Equipment Borrowing Report
+   ═══════════════════════════════════════════════ */
+@media print {
+
+  /* Hide everything */
+  body * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Show only the print report */
+  .print-report,
+  .print-report * {
+    display: revert !important;
+    visibility: visible !important;
+  }
+
+  .print-report {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+    font-family: 'Times New Roman', Times, serif !important;
+    font-size: 9pt !important;
+    line-height: 1.4 !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 12mm 12mm 14mm 12mm;
+  }
+
+  /* ── Header band ── */
+  .print-report .print-header {
+    display: flex !important;
+    align-items: center !important;
+    gap: 14px !important;
+    padding: 8px 0 10px !important;
+    margin-bottom: 14px !important;
+    border-top: 2.5px solid #000 !important;
+    border-bottom: 2.5px solid #000 !important;
+  }
+
+  .print-report .print-header-logos {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .print-report .print-header-logo {
+    display: inline-block !important;
+    width: 44px !important;
+    height: 44px !important;
+    object-fit: contain !important;
+  }
+
+  .print-report .print-header-text {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    flex: 1 !important;
+    padding: 0 10px !important;
+    border-left: 1.5px solid #ccc !important;
+    border-right: 1.5px solid #ccc !important;
+    text-align: center !important;
+  }
+
+  .print-report .print-header-text p {
+    margin: 0 !important;
+    font-size: 8.5pt !important;
+  }
+
+  .print-report .brgy-name {
+    font-size: 11.5pt !important;
+    font-weight: 700 !important;
+    color: #000 !important;
+    margin-bottom: 2px !important;
+  }
+
+  .print-report .doc-title-line {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin: 5px 0 3px !important;
+    justify-content: center !important;
+  }
+
+  .print-report .doc-title-line::before,
+  .print-report .doc-title-line::after {
+    content: '' !important;
+    display: block !important;
+    flex: 1 !important;
+    height: 1px !important;
+    background: #000 !important;
+  }
+
+  .print-report .doc-title {
+    font-size: 13pt !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .07em !important;
+    white-space: nowrap !important;
+    color: #000 !important;
+  }
+
+  .print-report .doc-sub {
+    font-size: 8pt !important;
+    color: #555 !important;
+  }
+
+  /* ── Two-column summary row ── */
+  .print-report .print-body {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 12px !important;
+    margin-bottom: 14px !important;
+    width: 100% !important;
+  }
+
+  .print-report .print-col-left,
+  .print-report .print-col-right {
+    display: block !important;
+    flex: 1 1 300px !important;
+    min-width: 220px !important;
+  }
+
+  /* ── Cards ── */
+  .print-report .rbi-card {
+    display: block !important;
+    border: 1px solid #000 !important;
+    border-radius: 0 !important;
+    padding: 10px 12px !important;
+    margin-bottom: 14px !important;
+    page-break-inside: avoid !important;
+    box-shadow: none !important;
+  }
+
+  .print-report .section-title {
+    font-size: 9pt !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .05em !important;
+    color: #000 !important;
+    border-bottom: 1.5px solid #000 !important;
+    padding-bottom: 4px !important;
+    margin: 0 0 10px !important;
+  }
+
+  /* ── Tables (shared rules) ── */
+  .print-report table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 8pt !important;
+    table-layout: fixed !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+
+  .print-report thead {
+    display: table-header-group !important;
+  }
+
+  .print-report thead th {
+    background: #1e293b !important;
+    color: #fff !important;
+    font-size: 7.5pt !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .04em !important;
+    padding: 5px 6px !important;
+    border: 1px solid #000 !important;
+    text-align: left !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print-report tbody td {
+    border: 1px solid #ccc !important;
+    padding: 5px 6px !important;
+    vertical-align: top !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    white-space: normal !important;
+  }
+
+  .print-report tbody tr:nth-child(even) td {
+    background: #f8f8f8 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print-report td.center,
+  .print-report th.center {
+    text-align: center !important;
+  }
+
+  /* ── Inventory overview table (auto-width, not fixed) ── */
+  .print-report .overview-table {
+    table-layout: auto !important;
+  }
+
+  .print-report .overview-table td {
+    text-align: center !important;
+    font-weight: 700 !important;
+    font-size: 11pt !important;
+    padding: 8px !important;
+  }
+
+  /* ── Borrower summary table column widths ── */
+  .print-report .borrower-table colgroup col:nth-child(1) { width: 5% !important; }
+  .print-report .borrower-table colgroup col:nth-child(2) { width: 35% !important; }
+  .print-report .borrower-table colgroup col:nth-child(3) { width: 10% !important; }
+  .print-report .borrower-table colgroup col:nth-child(4) { width: 50% !important; }
+
+  /* ── Detailed records table column widths ── */
+  .print-report .detail-table colgroup col:nth-child(1) { width: 5% !important; }
+  .print-report .detail-table colgroup col:nth-child(2) { width: 18% !important; }
+  .print-report .detail-table colgroup col:nth-child(3) { width: 25% !important; }
+  .print-report .detail-table colgroup col:nth-child(4) { width: 22% !important; }
+  .print-report .detail-table colgroup col:nth-child(5) { width: 15% !important; }
+  .print-report .detail-table colgroup col:nth-child(6) { width: 15% !important; }
+
+  /* ── Footer ── */
+  .print-report .foot {
+    display: block !important;
+    text-align: center !important;
+    font-size: 7.5pt !important;
+    font-style: italic !important;
+    color: #555 !important;
+    border-top: 1px solid #000 !important;
+    padding-top: 5px !important;
+    margin-top: 18px !important;
+  }
+}
+/* end @media print */
 </style>
 </head>
 <body>
@@ -294,6 +518,133 @@ main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
     <button class="menu-toggle" id="menuToggle"><span></span><span></span><span></span></button>
   </div>
 </header>
+
+<!-- ══ PRINTABLE REPORT (hidden on screen, shown when printing) ══════════════ -->
+<div class="print-report" style="display:none">
+
+  <!-- Header -->
+  <div class="print-header">
+    <div class="print-header-logos">
+      <img src="images/logo_bagong_pilipinas.png" class="print-header-logo" alt="Bagong Pilipinas">
+      <img src="images/lungsod_ng_manila_logo.png" class="print-header-logo" alt="City of Manila">
+    </div>
+    <div class="print-header-text">
+      <p class="doc-sub">Republic of the Philippines &nbsp;·&nbsp; City of Manila</p>
+      <p class="brgy-name"><?= htmlspecialchars($_brgy) ?></p>
+      <div class="doc-title-line"><span class="doc-title">Equipment Borrowing Report</span></div>
+      <p class="doc-sub">Generated: <?= date('F j, Y \a\t g:i A') ?></p>
+    </div>
+    <div class="print-header-logos">
+      <img src="images/brgy410_logo.png" class="print-header-logo" alt="Barangay 410">
+    </div>
+  </div>
+
+  <!-- Summary row -->
+  <div class="print-body">
+    <!-- Inventory overview -->
+    <div class="print-col-left">
+      <div class="rbi-card">
+        <div class="section-title">Inventory Overview</div>
+        <table class="overview-table">
+          <thead>
+            <tr>
+              <th class="center">Types</th>
+              <th class="center">Total Units</th>
+              <th class="center">Available</th>
+              <th class="center">Borrowed</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><?= (int)$print_equip_tot['c'] ?></td>
+              <td><?= (int)$print_equip_tot['q'] ?></td>
+              <td><?= (int)$print_equip_tot['avail'] ?></td>
+              <td><?= (int)$borrowed_count ?></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Borrower summary -->
+    <div class="print-col-right">
+      <div class="rbi-card">
+        <div class="section-title">Borrower Summary</div>
+        <table class="borrower-table">
+          <colgroup><col><col><col><col></colgroup>
+          <thead>
+            <tr>
+              <th class="center">#</th>
+              <th>Borrower</th>
+              <th class="center">Count</th>
+              <th>Items</th>
+            </tr>
+          </thead>
+          <tbody>
+          <?php
+          // Re-run query since we may have consumed it earlier
+          $ps2 = $conn->query("SELECT eb.borrower_name, eb.borrower_contact, COUNT(*) AS cnt,
+            GROUP_CONCAT(CONCAT(e.item_code,' - ',e.item_name) SEPARATOR '; ') AS items
+            FROM equipment_borrowing eb JOIN equipment e ON eb.equipment_id=e.id
+            GROUP BY eb.borrower_name, eb.borrower_contact
+            ORDER BY cnt DESC");
+          if ($ps2 && $ps2->num_rows): $j=1; while($b = $ps2->fetch_assoc()): ?>
+            <tr>
+              <td class="center"><?= $j ?></td>
+              <td><?= htmlspecialchars($b['borrower_name']) ?></td>
+              <td class="center"><?= (int)$b['cnt'] ?></td>
+              <td><?= htmlspecialchars($b['items']) ?></td>
+            </tr>
+          <?php $j++; endwhile; else: ?>
+            <tr><td colspan="4" style="text-align:center;padding:10px;font-style:italic">No borrowing data.</td></tr>
+          <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detailed records table -->
+  <div class="rbi-card">
+    <div class="section-title">Detailed Borrowing Records</div>
+    <table class="detail-table">
+      <colgroup><col><col><col><col><col><col></colgroup>
+      <thead>
+        <tr>
+          <th class="center">#</th>
+          <th>Borrow Code</th>
+          <th>Item</th>
+          <th>Borrower</th>
+          <th class="center">Borrow Date</th>
+          <th class="center">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+      <?php
+      $pd2 = $conn->query("SELECT eb.*,e.item_name,e.item_code
+        FROM equipment_borrowing eb JOIN equipment e ON eb.equipment_id=e.id
+        ORDER BY eb.borrow_date DESC");
+      if ($pd2 && $pd2->num_rows): $i=1; while($r = $pd2->fetch_assoc()): ?>
+        <tr>
+          <td class="center"><?= $i ?></td>
+          <td><?= htmlspecialchars($r['borrow_code']) ?></td>
+          <td><?= htmlspecialchars($r['item_code'] . ' — ' . $r['item_name']) ?></td>
+          <td><?= htmlspecialchars($r['borrower_name']) ?></td>
+          <td class="center"><?= htmlspecialchars($r['borrow_date']) ?></td>
+          <td class="center"><?= htmlspecialchars($r['status']) ?></td>
+        </tr>
+      <?php $i++; endwhile; else: ?>
+        <tr><td colspan="6" style="text-align:center;padding:12px;font-style:italic">No borrowing records found.</td></tr>
+      <?php endif; ?>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="foot">
+    ProjectRBI &mdash; <?= htmlspecialchars($_brgy) ?> &nbsp;&middot;&nbsp; Printed <?= date('F j, Y') ?>
+  </div>
+</div>
+<!-- end .print-report -->
 
 <!-- ══ SIDEBAR ═════════════════════════════════════════════════════════════════ -->
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
@@ -339,17 +690,18 @@ main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
     <p>Manage barangay equipment inventory, lending requests, and return tracking.</p>
   </div>
 </div>
+
+<!-- Tab nav bar -->
 <div style="background:#fff;border-bottom:1px solid #e2e8f0;padding:0 2rem">
   <div style="max-width:1200px;margin:0 auto;display:flex;gap:.25rem">
     <a href="#inventory" id="tab-inventory-link" style="display:inline-flex;align-items:center;gap:7px;padding:14px 18px;font-size:13px;font-weight:600;color:#3b82f6;border-bottom:2px solid #3b82f6;text-decoration:none"><i class="fas fa-boxes-stacked"></i> Inventory</a>
-    <a href="#borrowed" id="tab-borrowed-link" style="display:inline-flex;align-items:center;gap:7px;padding:14px 18px;font-size:13px;font-weight:600;color:#64748b;border-bottom:2px solid transparent;text-decoration:none"><i class="fas fa-hand-holding"></i> Borrowed (<?= $borrowed_count ?>)</a>
-    <a href="#history" id="tab-history-link" style="display:inline-flex;align-items:center;gap:7px;padding:14px 18px;font-size:13px;font-weight:600;color:#64748b;border-bottom:2px solid transparent;text-decoration:none"><i class="fas fa-clock-rotate-left"></i> History</a>
+    <a href="#borrowed"  id="tab-borrowed-link"  style="display:inline-flex;align-items:center;gap:7px;padding:14px 18px;font-size:13px;font-weight:600;color:#64748b;border-bottom:2px solid transparent;text-decoration:none"><i class="fas fa-hand-holding"></i> Borrowed (<?= $borrowed_count ?>)</a>
+    <a href="#history"   id="tab-history-link"   style="display:inline-flex;align-items:center;gap:7px;padding:14px 18px;font-size:13px;font-weight:600;color:#64748b;border-bottom:2px solid transparent;text-decoration:none"><i class="fas fa-clock-rotate-left"></i> History</a>
   </div>
 </div>
 
 <!-- ══ MAIN ═════════════════════════════════════════════════════════════════════ -->
 <main>
-
   <?php if ($msg): ?>
   <div class="alert alert-<?= $msg_type ?>" style="margin-bottom:1.25rem">
     <i class="fas fa-<?= $msg_type === 'success' ? 'check-circle' : 'triangle-exclamation' ?>"></i>
@@ -429,7 +781,7 @@ main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
     </div>
     <?php else: ?>
     <div class="equip-grid">
-      <?php while ($row = $equipment_result->fetch_assoc()):
+      <?php $equipment_result->data_seek(0); while ($row = $equipment_result->fetch_assoc()):
         $cond    = $row['condition_status'] ?? 'Good';
         $condKey = str_replace(' ', '', $cond);
         $pct     = $row['quantity'] > 0 ? round($row['available'] / $row['quantity'] * 100) : 0;
@@ -463,7 +815,6 @@ main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
           <a href="?delete_equipment=<?= $row['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Delete this equipment and all its borrow records?')"><i class="fas fa-trash"></i></a>
           <?php endif; ?>
         </div>
-
       </div>
       <?php endwhile; ?>
     </div>
@@ -483,7 +834,7 @@ main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
         <table>
           <thead><tr><th>Borrow Code</th><th>Equipment</th><th>Borrower</th><th>Date Borrowed</th><th>Return By</th><th>Status</th><th></th></tr></thead>
           <tbody>
-          <?php while ($br = $borrowed_result->fetch_assoc()):
+          <?php $borrowed_result->data_seek(0); while ($br = $borrowed_result->fetch_assoc()):
             $due   = strtotime($br['return_date']);
             $diff  = ($due - strtotime(date('Y-m-d'))) / 86400;
             $dueCls = $diff < 0 ? 'due-late' : ($diff <= 2 ? 'due-soon' : 'due-ok');
@@ -495,9 +846,7 @@ main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
             <td style="font-size:12px"><?= date('M j, Y', strtotime($br['borrow_date'])) ?></td>
             <td><span class="due-badge <?= $dueCls ?>"><?= date('M j, Y', $due) ?></span></td>
             <td><span class="due-badge <?= $dueCls ?>"><?= $diff < 0 ? 'Overdue' : 'Active' ?></span></td>
-            <td>
-              <a href="?return_id=<?= $br['id'] ?>" class="btn btn-success btn-sm" onclick="return confirm('Mark as returned?')"><i class="fas fa-rotate-left"></i> Return</a>
-            </td>
+            <td><a href="?return_id=<?= $br['id'] ?>" class="btn btn-success btn-sm" onclick="return confirm('Mark as returned?')"><i class="fas fa-rotate-left"></i> Return</a></td>
           </tr>
           <?php endwhile; ?>
           </tbody>
@@ -545,6 +894,7 @@ main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
   &copy; <?= date('Y') ?> ProjectRBI – <?= $_brgy ?> Census Management System · Manila City
 </footer>
 
+<!-- Settings Drawer -->
 <div id="settingsOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1100" onclick="closeSettings()"></div>
 <div id="settingsDrawer" style="position:fixed;top:0;right:-360px;width:340px;height:100vh;background:#0f172a;z-index:1101;transition:right .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,.08)">
   <div style="padding:20px 20px 14px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-between">
@@ -558,7 +908,7 @@ main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Actions</div>
     <button onclick="printEquip()" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer">
       <div style="width:30px;height:30px;background:rgba(255,255,255,.08);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-print" style="color:#94a3b8;font-size:13px"></i></div>
-      <div style="text-align:left"><div style="font-size:13px;font-weight:600;color:#fff">Print Inventory</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Print the equipment list</div></div>
+      <div style="text-align:left"><div style="font-size:13px;font-weight:600;color:#fff">Print Inventory</div><div style="font-size:11px;color:rgba(255,255,255,.4)">Print the equipment borrowing report</div></div>
     </button>
   </div>
   <div style="padding:14px 16px;border-top:1px solid rgba(255,255,255,.07)">
@@ -628,68 +978,60 @@ main{padding:1.75rem 2rem;max-width:1300px;margin:0 auto}
 <script>
 // Clock
 function tc(){const n=new Date();document.getElementById('clock').textContent=n.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})+' '+n.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'});}tc();setInterval(tc,1000);
+
 // Sidebar
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sidebarOverlay').classList.add('open');document.body.style.overflow='hidden';}
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebarOverlay').classList.remove('open');document.body.style.overflow='';}
+document.getElementById('menuToggle').addEventListener('click',openSidebar);
+
+// Settings drawer
 function openSettings(){document.getElementById('settingsOverlay').style.display='block';document.getElementById('settingsDrawer').style.right='0';document.body.style.overflow='hidden';closeSidebar();}
 function closeSettings(){document.getElementById('settingsOverlay').style.display='none';document.getElementById('settingsDrawer').style.right='-360px';document.body.style.overflow='';}
-function printEquip(){closeSettings();setTimeout(()=>window.print(),350);}
-document.getElementById('menuToggle').addEventListener('click',openSidebar);
+
+// Print — show the report div first, then call window.print(), then hide again
+function printEquip(){
+  closeSettings();
+  var el = document.querySelector('.print-report');
+  el.style.display = 'block';
+  setTimeout(function(){
+    window.print();
+    setTimeout(function(){ el.style.display = 'none'; }, 500);
+  }, 350);
+}
+
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSettings();closeSidebar();closeBorrowModal();}});
 
 // Tab switching
-const tabs = {
-  inventory: document.getElementById('tab-inventory'),
-  borrowed:  document.getElementById('tab-borrowed'),
-  history:   document.getElementById('tab-history'),
-};
-const links = {
-  inventory: document.getElementById('tab-inventory-link'),
-  borrowed:  document.getElementById('tab-borrowed-link'),
-  history:   document.getElementById('tab-history-link'),
-};
-function showTab(name) {
-  Object.keys(tabs).forEach(k => {
-    tabs[k].style.display  = k === name ? 'block' : 'none';
-    links[k].className = k === name ? 'active' : 'ghost';
+const tabs  = { inventory: document.getElementById('tab-inventory'), borrowed: document.getElementById('tab-borrowed'), history: document.getElementById('tab-history') };
+const links = { inventory: document.getElementById('tab-inventory-link'), borrowed: document.getElementById('tab-borrowed-link'), history: document.getElementById('tab-history-link') };
+const activeStyle   = 'display:inline-flex;align-items:center;gap:7px;padding:14px 18px;font-size:13px;font-weight:600;text-decoration:none;color:#3b82f6;border-bottom:2px solid #3b82f6;';
+const inactiveStyle = 'display:inline-flex;align-items:center;gap:7px;padding:14px 18px;font-size:13px;font-weight:600;text-decoration:none;color:#64748b;border-bottom:2px solid transparent;';
+function showTab(name){
+  Object.keys(tabs).forEach(k=>{
+    tabs[k].style.display  = k===name ? 'block' : 'none';
+    links[k].style.cssText = k===name ? activeStyle : inactiveStyle;
   });
   location.hash = name;
 }
-// Route from hash or default
-(function(){
-  const h = location.hash.replace('#','');
-  showTab(h in tabs ? h : 'inventory');
-})();
-Object.keys(links).forEach(k => links[k].addEventListener('click', e => { e.preventDefault(); showTab(k); }));
+(function(){ const h=location.hash.replace('#',''); showTab(h in tabs ? h : 'inventory'); })();
+Object.keys(links).forEach(k=>links[k].addEventListener('click',e=>{e.preventDefault();showTab(k);}));
 
 // Add panel
-function toggleAddPanel(){
-  const p = document.getElementById('addPanel');
-  p.style.display = p.style.display === 'block' ? 'none' : 'block';
-}
+function toggleAddPanel(){const p=document.getElementById('addPanel');p.style.display=p.style.display==='block'?'none':'block';}
 
 // Borrow modal
-function openBorrowModal(id, name) {
-  document.getElementById('borrowEquipId').value = id;
-  document.getElementById('borrowModalEquipName').textContent = name;
-  document.getElementById('borrowerNameInput').value = '';
-  document.getElementById('modalPurpose').value = 'Birthday';
-  document.getElementById('modalOtherWrap').style.display = 'none';
+function openBorrowModal(id,name){
+  document.getElementById('borrowEquipId').value=id;
+  document.getElementById('borrowModalEquipName').textContent=name;
+  document.getElementById('borrowerNameInput').value='';
+  document.getElementById('modalPurpose').value='Birthday';
+  document.getElementById('modalOtherWrap').style.display='none';
   document.getElementById('borrowModalOverlay').classList.add('open');
-  document.body.style.overflow = 'hidden';
-  setTimeout(() => document.getElementById('borrowerNameInput').focus(), 120);
+  document.body.style.overflow='hidden';
+  setTimeout(()=>document.getElementById('borrowerNameInput').focus(),120);
 }
-function closeBorrowModal() {
-  document.getElementById('borrowModalOverlay').classList.remove('open');
-  document.body.style.overflow = '';
-}
-function toggleModalOther() {
-  document.getElementById('modalOtherWrap').style.display =
-    document.getElementById('modalPurpose').value === 'Others' ? 'block' : 'none';
-}
+function closeBorrowModal(){document.getElementById('borrowModalOverlay').classList.remove('open');document.body.style.overflow='';}
+function toggleModalOther(){document.getElementById('modalOtherWrap').style.display=document.getElementById('modalPurpose').value==='Others'?'block':'none';}
 </script>
 </body>
 </html>
-
-
-
