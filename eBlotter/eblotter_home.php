@@ -101,42 +101,20 @@ $rbadge = match($role) {
     /* Deny alert */
     .deny-alert{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:.75rem 1.25rem;font-size:.88rem;text-align:center;margin-bottom:1rem;border-radius:8px}
 
-    /* Hero banner — full width, flush to edges */
-    .hero-banner{margin-bottom:0;border-radius:0;overflow:hidden;background:linear-gradient(to right,rgba(15,23,42,.85),rgba(15,23,42,.55)),url('../images/Barangay_officials_410.png') center center/cover no-repeat}
-    .hero-banner .inner{display:flex;align-items:center;gap:2rem;padding:2.5rem 2rem 2.5rem 2.5rem;max-width:1100px;margin:0 auto}
-    .eb-hero-seal{width:90px;height:90px;object-fit:cover;border-radius:50%;filter:drop-shadow(0 2px 8px rgba(0,0,0,.4));flex-shrink:0}
-    .eb-hero-text h1{font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:800;color:#fff;margin:0 0 .25rem;line-height:1}
-    .eb-hero-text p{font-size:.82rem;color:rgba(255,255,255,.7);margin:0 0 1rem}
-    .eb-hero-btns{display:flex;gap:.6rem;flex-wrap:wrap}
-    .eb-hero-btn{display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:8px;font-size:.82rem;font-weight:600;text-decoration:none;border:1.5px solid rgba(255,255,255,.35);color:#fff;background:rgba(255,255,255,.1);backdrop-filter:blur(4px);transition:.15s}
-    .eb-hero-btn:hover{background:rgba(255,255,255,.2)}
-    .eb-hero-btn.primary{background:#3b82f6;border-color:#3b82f6}
-    .eb-hero-btn.primary:hover{background:#2563eb}
-    @media(max-width:600px){.hero-banner .inner{flex-direction:column;gap:1rem;padding:1.5rem}.eb-hero-seal{width:64px;height:64px}.eb-hero-text h1{font-size:1.6rem}}
   </style>
 </head>
 <body>
 
 <?php
 $active_page  = 'home';
+$hero_mode    = true;
+$hero_title   = 'eBlotter';
+$hero_active  = 'home';
 $page_title   = '<i class="fas fa-shield-halved" style="opacity:.8;margin-right:5px"></i> eBlotter Dashboard';
 $page_actions = null;
 include '_eb_topbar.php';
+include '_eb_hero.php';
 ?>
-
-<!-- Hero Banner — full width outside main -->
-<div class="hero-banner">
-  <div class="inner">
-    <div class="eb-hero-text">
-      <h1>eBlotter</h1>
-      <p><?= defined('BRGY_NAME') ? htmlspecialchars(BRGY_NAME) : 'Barangay' ?> Case Management System &mdash; <?= defined('BRGY_CITY') ? htmlspecialchars(BRGY_CITY) : 'Manila' ?>, District <?= defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : '' ?></p>
-      <div class="eb-hero-btns">
-        <a href="add_case.php" class="eb-hero-btn primary"><i class="fas fa-plus"></i> Add Record</a>
-        <a href="view_cases.php" class="eb-hero-btn"><i class="fas fa-list"></i> View Records</a>
-      </div>
-    </div>
-  </div>
-</div>
 
 <main>
   <?php if(isset($_GET['denied'])): ?>
@@ -314,4 +292,3 @@ include '_eb_topbar.php';
 
 </body>
 </html>
-

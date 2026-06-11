@@ -1,6 +1,6 @@
 ﻿<?php
 require_once __DIR__.'/auth.php';
-requireRole(); // all roles can add records
+requireRole(['secretary']); // Chairman cannot add cases — secretary only
 // date_default_timezone_set already called in auth.php
 
 $errors  = [];
@@ -31,8 +31,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     elseif ($when > $today)          $errors[] = "Incident date cannot be in the future.";
     if (empty($bc))                  $errors[] = "Description is required.";
     if (empty($where))               $errors[] = "Location is required.";
-    if ($cf===''||$cl===''||$rf===''||$rl==='')
-                                     $errors[] = "Complainant and respondent first/last names are required.";
+    if ($cf==='' || $cl==='')
+                                     $errors[] = "Complainant first and last name are required.";
+    // Respondent required only for Complain
+    if ($disp === 'Complain' && ($rf==='' || $rl===''))
+                                     $errors[] = "Respondent first and last name are required for a Complaint.";
+    // No numbers in name fields + max 60 chars
+    foreach (["Complainant First"=>$cf,"Complainant Middle"=>$cm,"Complainant Last"=>$cl,"Respondent First"=>$rf,"Respondent Middle"=>$rm,"Respondent Last"=>$rl] as $lbl=>$val) {
+        if ($val !== "" && preg_match("/[0-9]/", $val)) $errors[] = "$lbl must not contain numbers.";
+        if (mb_strlen($val) > 60) $errors[] = "$lbl is too long (max 60 characters).";
+    }
     if (empty($caddr))               $errors[] = "Complainant address is required.";
     if ($cage < 18 || $cage > 130)   $errors[] = "Complainant age must be between 18 and 130.";
     if ($disp === '')                $errors[] = "Please select a record type.";
@@ -101,13 +109,55 @@ $active_page = 'add';
   <link rel="stylesheet" href="eblotter.css?v=<?=filemtime(__DIR__.'/eblotter.css')?>">
   <style>
     .disp-cards { display: flex; gap: 1rem; margin-top: .5rem; }
-    .disp-card  { flex: 1; border: 2px solid var(--gray200); border-radius: 12px; padding: 1.25rem; cursor: pointer; transition: border-color .2s, background .2s; text-align: center; }
-    .disp-card:hover { border-color: var(--accent); }
+    .disp-card  {
+      flex: 1; border: 2px solid var(--gray200); border-radius: 14px;
+      padding: 1.75rem 1.25rem; cursor: pointer;
+      transition: all .2s; text-align: center;
+      background: #fff; position: relative; overflow: hidden;
+    }
     .disp-card input[type=radio] { display: none; }
-    .disp-card i { font-size: 1.8rem; margin-bottom: .5rem; color: var(--gray400); display: block; }
-    .disp-card span { font-weight: 700; font-size: .95rem; color: var(--gray600); }
-    .disp-card.selected { border-color: var(--accent); background: #eff6ff; }
-    .disp-card.selected i, .disp-card.selected span { color: var(--accent); }
+    .disp-card i { font-size: 2.2rem; margin-bottom: .75rem; display: block; transition: color .2s; }
+    .disp-card span { font-weight: 700; font-size: 1.05rem; display: block; transition: color .2s; }
+    .disp-card p { font-size: .78rem; margin-top: .35rem; transition: color .2s; }
+    .disp-card .disp-badge {
+      display: inline-block; margin-top: .6rem; font-size: .7rem; font-weight: 700;
+      padding: 2px 10px; border-radius: 99px; letter-spacing: .04em;
+    }
+
+    /* Complain — red/orange theme */
+    #dc-complain { border-color: #fecaca; }
+    #dc-complain i { color: #ef4444; }
+    #dc-complain span { color: #b91c1c; }
+    #dc-complain p { color: #ef4444; }
+    #dc-complain .disp-badge { background: #fef2f2; color: #b91c1c; }
+    #dc-complain:hover { border-color: #ef4444; box-shadow: 0 4px 16px rgba(239,68,68,.15); }
+    #dc-complain.selected { border-color: #ef4444; background: #fff5f5; box-shadow: 0 4px 20px rgba(239,68,68,.18); }
+
+    /* Record — blue theme */
+    #dc-record { border-color: #bfdbfe; }
+    #dc-record i { color: #3b82f6; }
+    #dc-record span { color: #1d4ed8; }
+    #dc-record p { color: #3b82f6; }
+    #dc-record .disp-badge { background: #eff6ff; color: #1d4ed8; }
+    #dc-record:hover { border-color: #3b82f6; box-shadow: 0 4px 16px rgba(59,130,246,.15); }
+    #dc-record.selected { border-color: #3b82f6; background: #eff6ff; box-shadow: 0 4px 20px rgba(59,130,246,.18); }
+
+    /* Selected checkmark */
+    .disp-card.selected::after {
+      content: "\2713";
+      position: absolute; top: 10px; right: 14px;
+      font-size: 1.1rem; font-weight: 900;
+    }
+    #dc-complain.selected::after { color: #ef4444; }
+    #dc-record.selected::after   { color: #3b82f6; }
+
+    /* Record-only notice banner */
+    .record-notice {
+      display: none; background: #eff6ff; border: 1.5px solid #bfdbfe;
+      border-radius: 10px; padding: .85rem 1rem; margin-top: 1rem;
+      font-size: .84rem; color: #1d4ed8; align-items: center; gap: .6rem;
+    }
+    .record-notice.visible { display: flex; }
 
     .step-actions { display: flex; gap: .75rem; margin-top: 1.75rem; align-items: center; }
     .step-counter { font-size: .82rem; color: var(--gray400); margin-left: auto; }
@@ -177,14 +227,20 @@ include '_eb_hero.php';
           <input type="radio" name="disposition" value="Complain">
           <i class="fas fa-exclamation-triangle"></i>
           <span>Complain</span>
-          <p style="font-size:.77rem;color:var(--gray400);margin-top:.25rem;">Formal complaint against a party</p>
+          <p>Formal complaint against a party</p>
+          <span class="disp-badge">Requires respondent &amp; mediation</span>
         </label>
         <label class="disp-card" id="dc-record">
           <input type="radio" name="disposition" value="Record">
           <i class="fas fa-book-open"></i>
           <span>Record</span>
-          <p style="font-size:.77rem;color:var(--gray400);margin-top:.25rem;">For documentation purposes</p>
+          <p>For documentation purposes only</p>
+          <span class="disp-badge">No respondent required</span>
         </label>
+        <div class="record-notice" id="recordNotice">
+          <i class="fas fa-info-circle" style="font-size:1.1rem;flex-shrink:0"></i>
+          <span><strong>Record only:</strong> Respondent information is optional. This entry will be for documentation purposes and will not go through the mediation process.</span>
+        </div>
       </div>
     </div>
 
@@ -194,9 +250,9 @@ include '_eb_hero.php';
         <i class="fas fa-user" style="color:var(--accent)"></i> Complainant Information
       </h2>
       <div class="name-row">
-        <div class="eb-field"><label>First Name *</label><input type="text" name="complainant_first" placeholder="e.g. Juan"></div>
-        <div class="eb-field"><label>Middle Name</label><input type="text" name="complainant_middle" placeholder="Optional"></div>
-        <div class="eb-field"><label>Last Name *</label><input type="text" name="complainant_last" placeholder="e.g. dela Cruz"></div>
+        <div class="eb-field"><label>First Name *</label><input type="text" name="complainant_first" placeholder="e.g. Juan" maxlength="60" pattern="[^0-9]*" title="No numbers allowed"></div>
+        <div class="eb-field"><label>Middle Name</label><input type="text" name="complainant_middle" placeholder="Optional" maxlength="60" pattern="[^0-9]*" title="No numbers allowed"></div>
+        <div class="eb-field"><label>Last Name *</label><input type="text" name="complainant_last" placeholder="e.g. dela Cruz" maxlength="60" pattern="[^0-9]*" title="No numbers allowed"></div>
       </div>
       <div class="eb-row">
         <div class="eb-field" style="max-width:180px;">
@@ -210,13 +266,17 @@ include '_eb_hero.php';
 
     <!-- STEP 2 -->
     <div class="eb-step" id="step2">
-      <h2 style="font-family:'Syne',sans-serif;font-size:1.1rem;color:var(--navy);margin-bottom:1rem;">
+      <h2 style="font-family:'Syne',sans-serif;font-size:1.1rem;color:var(--navy);margin-bottom:.5rem;">
         <i class="fas fa-user-shield" style="color:var(--red)"></i> Respondent Information
+        <span id="respOptionalBadge" style="display:none;font-size:.7rem;font-weight:600;padding:2px 10px;border-radius:99px;background:#eff6ff;color:#1d4ed8;margin-left:.5rem;vertical-align:middle">Optional for Record</span>
       </h2>
+      <div id="respRecordNotice" style="display:none;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:9px;padding:.7rem 1rem;font-size:.82rem;color:#1d4ed8;margin-bottom:.85rem">
+        <i class="fas fa-info-circle"></i> Since this is a <strong>Record</strong>, respondent info is optional. You may leave it blank.
+      </div>
       <div class="name-row">
-        <div class="eb-field"><label>First Name *</label><input type="text" name="respondent_first" placeholder="e.g. Maria"></div>
-        <div class="eb-field"><label>Middle Name</label><input type="text" name="respondent_middle" placeholder="Optional"></div>
-        <div class="eb-field"><label>Last Name *</label><input type="text" name="respondent_last" placeholder="e.g. Santos"></div>
+        <div class="eb-field"><label>First Name *</label><input type="text" name="respondent_first" placeholder="e.g. Maria" maxlength="60" pattern="[^0-9]*" title="No numbers allowed"></div>
+        <div class="eb-field"><label>Middle Name</label><input type="text" name="respondent_middle" placeholder="Optional" maxlength="60" pattern="[^0-9]*" title="No numbers allowed"></div>
+        <div class="eb-field"><label>Last Name *</label><input type="text" name="respondent_last" placeholder="e.g. Santos" maxlength="60" pattern="[^0-9]*" title="No numbers allowed"></div>
       </div>
       <div class="eb-field"><label>Address</label><input type="text" name="respondent_address" placeholder="Full address"></div>
     </div>
@@ -259,10 +319,35 @@ include '_eb_hero.php';
 </main>
 
 <script>
+let isRecord = false;
+
 document.querySelectorAll('.disp-card input[type=radio]').forEach(radio => {
   radio.addEventListener('change', () => {
     document.querySelectorAll('.disp-card').forEach(c => c.classList.remove('selected'));
-    radio.parentElement.classList.add('selected');
+    // For record notice — only show under the cards, not inside label
+    const recordNotice = document.getElementById('recordNotice');
+    // find the parent label and add selected
+    let lbl = radio.closest('.disp-card');
+    if (lbl) lbl.classList.add('selected');
+
+    isRecord = (radio.value === 'Record');
+
+    // Show/hide record notice below the cards
+    if (recordNotice) recordNotice.classList.toggle('visible', isRecord);
+
+    // Show/hide respondent optional indicators
+    const badge  = document.getElementById('respOptionalBadge');
+    const notice = document.getElementById('respRecordNotice');
+    if (badge)  badge.style.display  = isRecord ? 'inline-block' : 'none';
+    if (notice) notice.style.display = isRecord ? 'block' : 'none';
+
+    // Make respondent fields not required if Record
+    document.querySelectorAll('[name=respondent_first],[name=respondent_last]').forEach(el => {
+      el.required = !isRecord;
+      el.placeholder = isRecord
+        ? (el.name === 'respondent_first' ? 'Optional' : 'Optional')
+        : (el.name === 'respondent_first' ? 'e.g. Maria' : 'e.g. Santos');
+    });
   });
 });
 
@@ -307,9 +392,12 @@ function validate(n) {
     if (isNaN(age) || age < 18 || age > 130) { alert('Age must be between 18 and 130.'); return false; }
   }
   if (n === 2) {
-    if (!document.querySelector('[name=respondent_first]').value ||
-        !document.querySelector('[name=respondent_last]').value) {
-      alert('Respondent first and last name are required.'); return false;
+    // Respondent required only for Complain, optional for Record
+    if (!isRecord) {
+      if (!document.querySelector('[name=respondent_first]').value ||
+          !document.querySelector('[name=respondent_last]').value) {
+        alert('Respondent first and last name are required for a Complaint.'); return false;
+      }
     }
   }
   if (n === 3) {

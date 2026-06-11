@@ -27,12 +27,42 @@ function cd($conn,$col,$extra='AND is_hidden=0'){
   while($row=mysqli_fetch_assoc($r)){$l[]=$row[$col];$c[]=(int)$row['c'];}
   return[$l,$c];
 }
-[$gender_l,$gender_c]=cd($conn,'gender');
+function yn($conn,$col){
+  $yes=0;$no=0;
+  $r=mysqli_query($conn,"SELECT
+    SUM(CASE WHEN LOWER(TRIM($col))='yes' THEN 1 ELSE 0 END) AS yes_count,
+    SUM(CASE WHEN LOWER(TRIM($col))='no' THEN 1 ELSE 0 END) AS no_count
+    FROM residents WHERE is_hidden=0");
+  if($r && $row=mysqli_fetch_assoc($r)){
+    $yes=(int)($row['yes_count']??0);
+    $no=(int)($row['no_count']??0);
+  }
+  return [['Yes','No'],[$yes,$no]];
+}
+// Cross-module live stats
+$blotter_pending=0;$blotter_ongoing=0;$blotter_total=0;
+$cert_pending=0;$doc_pending=0;$equip_borrowed=0;$senior_bday=0;
+$r=$conn->query("SELECT COUNT(*) AS c FROM blotter_cases WHERE status='Pending'");
+if($r)$blotter_pending=(int)($r->fetch_assoc()["c"]??0);
+$r=$conn->query("SELECT COUNT(*) AS c FROM blotter_cases WHERE status='Ongoing'");
+if($r)$blotter_ongoing=(int)($r->fetch_assoc()["c"]??0);
+$r=$conn->query("SELECT COUNT(*) AS c FROM blotter_cases");
+if($r)$blotter_total=(int)($r->fetch_assoc()["c"]??0);
+$r=$conn->query("SELECT COUNT(*) AS c FROM certificate_requests WHERE status='Pending'");
+if($r)$cert_pending=(int)($r->fetch_assoc()["c"]??0);
+$r=$conn->query("SELECT COUNT(*) AS c FROM document_requests WHERE status='Pending'");
+if($r)$doc_pending=(int)($r->fetch_assoc()["c"]??0);
+$docu_pending_total=$cert_pending+$doc_pending;
+$r=$conn->query("SELECT COUNT(*) AS c FROM equipment_borrows WHERE status='Borrowed'");
+if($r)$equip_borrowed=(int)($r->fetch_assoc()["c"]??0);
+$r=$conn->query("SELECT COUNT(*) AS c FROM residents WHERE MONTH(birthdate)=MONTH(CURDATE()) AND TIMESTAMPDIFF(YEAR,birthdate,CURDATE())>=60 AND is_hidden=0");
+if($r)$senior_bday=(int)($r->fetch_assoc()["c"]??0);
+[$gender_l,$gender_c]=cd($conn,"gender");
 [$marital_l,$marital_c]=cd($conn,'marital_status');
-[$voter_l,$voter_c]=cd($conn,'voter');
-[$house_l,$house_c]=cd($conn,'house_owner');
-[$car_l,$car_c]=cd($conn,'has_car');
-[$moto_l,$moto_c]=cd($conn,'has_motorcycle');
+[$voter_l,$voter_c]=yn($conn,'voter');
+[$house_l,$house_c]=yn($conn,'house_owner');
+[$car_l,$car_c]=yn($conn,'has_car');
+[$moto_l,$moto_c]=yn($conn,'has_motorcycle');
 $emp_l=['Employed','Unemployed'];$emp_c=[0,0];
 $r=mysqli_query($conn,"SELECT employment_status,COUNT(*) AS c FROM residents WHERE is_hidden=0 GROUP BY employment_status");
 while($row=mysqli_fetch_assoc($r)){if(strtolower($row['employment_status'])==='employed')$emp_c[0]+=$row['c'];else $emp_c[1]+=$row['c'];}
@@ -286,21 +316,17 @@ main{padding:1.5rem;max-width:1200px;margin:0 auto}
   <div class="sidebar-section">
     <div class="sidebar-label">Main</div>
     <a href="Home.php" class="sidebar-link active"><span class="sidebar-icon"><i class="fas fa-house"></i></span> Dashboard</a>
-    <?php if(!$is_guest): ?>
     <?php if($can_register): ?><a href="Register.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-user-plus"></i></span> Register Resident</a><?php endif; ?>
     <?php if($is_captain): ?><a href="manage_accounts.php" class="sidebar-link"><span class="sidebar-icon" style="background:rgba(245,158,11,.15);color:#f59e0b"><i class="fas fa-users-gear"></i></span> <span>Manage Accounts</span></a><?php endif; ?>
     <a href="Display_List.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-users"></i></span> Residents</a>
-    <?php endif; ?>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Modules</div>
     <a href="RBI.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-clipboard-list"></i></span> RBI Report</a>
-    <?php if(!$is_guest): ?>
-    <a href="data_tracking.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-database"></i></span> Document Tracking</a>
+    <a href="docu_tracking_home.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-database"></i></span> Document Tracking</a>
     <a href="eBlotter/eblotter_home.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-shield-halved"></i></span> E-Blotter</a>
     <a href="equipment.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-box-archive"></i></span> Equipment</a>
     <a href="senior_citizen.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-person-cane"></i></span> Senior Citizens</a>
-    <?php endif; ?>
   </div>
 
   <div class="sidebar-footer">
@@ -326,64 +352,16 @@ main{padding:1.5rem;max-width:1200px;margin:0 auto}
   </div>
   <?php endif; ?>
 
-<?php if($is_guest): ?>
-  <!-- ══ GUEST DASHBOARD ══════════════════════════════════════════════════════ -->
-  <div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1px solid #fde68a;border-radius:14px;padding:1.5rem 2rem;margin-bottom:1.5rem;display:flex;align-items:flex-start;gap:16px">
-    <div style="width:48px;height:48px;background:#f59e0b;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
-      <i class="fas fa-eye" style="color:#fff;font-size:20px"></i>
-    </div>
+  <?php if($is_captain): ?>
+  <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:14px 18px;margin-bottom:1.25rem;display:flex;align-items:flex-start;gap:12px;font-size:13px;color:#92400e">
+    <i class="fas fa-star" style="font-size:18px;flex-shrink:0;margin-top:1px;color:#f59e0b"></i>
     <div>
-      <div style="font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;color:#92400e;margin-bottom:4px">Kagawad Guest Access</div>
-      <div style="font-size:13px;color:#92400e;opacity:.85;line-height:1.6">
-        You are logged in as a <strong>Barangay Kagawad</strong>. You can view the census summary and the official RBI Report.<br>
-        For full resident details or system access, please coordinate with the <strong>Barangay Secretary</strong>.
-      </div>
+      <strong>Chairman Monitoring Mode</strong><br>
+      <span style="font-size:12px;opacity:.85">You are logged in as <strong><?= htmlspecialchars($user_fullname) ?></strong> (Barangay Captain). You have full visibility of all modules in read-only mode. All data entry and changes are handled by the <strong>Barangay Secretary</strong>.</span>
     </div>
   </div>
+  <?php endif; ?>
 
-  <!-- Census summary for guests -->
-  <div class="section-label" style="margin-bottom:14px">Census Summary</div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:2rem">
-    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1.25rem;text-align:center">
-      <div style="font-size:2rem;font-weight:800;color:#3b82f6;font-family:'Syne',sans-serif"><?=$total_residents?></div>
-      <div style="font-size:11px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:.06em">Residents</div>
-    </div>
-    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1.25rem;text-align:center">
-      <div style="font-size:2rem;font-weight:800;color:#8b5cf6;font-family:'Syne',sans-serif"><?=$total_households?></div>
-      <div style="font-size:11px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:.06em">Households</div>
-    </div>
-    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1.25rem;text-align:center">
-      <div style="font-size:2rem;font-weight:800;color:#f59e0b;font-family:'Syne',sans-serif"><?=$total_senior?></div>
-      <div style="font-size:11px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:.06em">Senior Citizens</div>
-    </div>
-    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1.25rem;text-align:center">
-      <div style="font-size:2rem;font-weight:800;color:#22c55e;font-family:'Syne',sans-serif"><?=$total_voters?></div>
-      <div style="font-size:11px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:.06em">Registered Voters</div>
-    </div>
-    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1.25rem;text-align:center">
-      <div style="font-size:2rem;font-weight:800;color:#ef4444;font-family:'Syne',sans-serif"><?=$total_pwd?></div>
-      <div style="font-size:11px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:.06em">PWD</div>
-    </div>
-    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:1.25rem;text-align:center">
-      <div style="font-size:2rem;font-weight:800;color:#14b8a6;font-family:'Syne',sans-serif"><?=$total_employed?></div>
-      <div style="font-size:11px;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:.06em">Employed</div>
-    </div>
-  </div>
-
-  <!-- RBI Report CTA for guests -->
-  <div class="section-label" style="margin-bottom:14px">Available Reports</div>
-  <div style="max-width:480px">
-    <a href="RBI.php" class="mod-card blue" style="display:flex;align-items:center;gap:16px;padding:1.25rem 1.5rem;text-decoration:none">
-      <div class="mod-icon blue" style="flex-shrink:0"><i class="fas fa-clipboard-list"></i></div>
-      <div>
-        <div class="mod-title" style="margin-bottom:4px">RBI Report</div>
-        <div class="mod-desc">View the official Register of Barangay Inhabitants — census data, age brackets, sectors, and civil status summary.</div>
-      </div>
-      <i class="fas fa-chevron-right mod-arrow" style="position:relative;margin-left:auto;flex-shrink:0;color:#94a3b8"></i>
-    </a>
-  </div>
-
-<?php else: ?>
   <!-- ══ FULL DASHBOARD (captain / secretary) ════════════════════════════════ -->
   <!-- BARANGAY MODULES -->
   <div class="section-label" style="margin-bottom:14px">Barangay Modules</div>
@@ -397,20 +375,38 @@ main{padding:1.5rem;max-width:1200px;margin:0 auto}
       <span class="mod-badge" style="background:#eff6ff;color:#1d4ed8">Official Report</span>
     </a>
 
-    <a href="data_tracking.php" class="mod-card teal">
+    <a href="docu_tracking_home.php" class="mod-card teal">
       <i class="fas fa-chevron-right mod-arrow"></i>
       <div class="mod-icon teal"><i class="fas fa-database"></i></div>
       <div class="mod-title">Document Tracking System</div>
       <div class="mod-desc">Audit logs, document requests, certificate generation, and system activity records for full transparency.</div>
-      <span class="mod-badge" style="background:#f0fdfa;color:#0f766e">Docs & Requests</span>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <?php if($docu_pending_total>0): ?>
+        <span class="mod-badge" style="background:#fef3c7;color:#92400e"><i class="fas fa-clock" style="margin-right:3px"></i><?=$docu_pending_total?> pending</span>
+        <?php else: ?>
+        <span class="mod-badge" style="background:#f0fdfa;color:#0f766e"><i class="fas fa-check" style="margin-right:3px"></i>All cleared</span>
+        <?php endif; ?>
+        <span class="mod-badge" style="background:#f0fdfa;color:#0f766e">Docs & Requests</span>
+      </div>
     </a>
 
-    <a href="eBlotter/eblotter_home.php" class="mod-card purple">
+    <a href="eBlotter/dashboard.php" class="mod-card purple">
       <i class="fas fa-chevron-right mod-arrow"></i>
       <div class="mod-icon purple"><i class="fas fa-shield-halved"></i></div>
       <div class="mod-title">E-Blotter</div>
       <div class="mod-desc">Electronic barangay blotter for recording incidents, complaints, and case tracking.</div>
-      <span class="mod-badge" style="background:#f5f3ff;color:#6d28d9">Incident Records</span>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <?php if($blotter_pending>0): ?>
+        <span class="mod-badge" style="background:#fef3c7;color:#92400e"><i class="fas fa-clock" style="margin-right:3px"></i><?=$blotter_pending?> pending</span>
+        <?php endif; ?>
+        <?php if($blotter_ongoing>0): ?>
+        <span class="mod-badge" style="background:#dbeafe;color:#1d4ed8"><i class="fas fa-spinner" style="margin-right:3px"></i><?=$blotter_ongoing?> ongoing</span>
+        <?php endif; ?>
+        <?php if($blotter_pending==0 && $blotter_ongoing==0): ?>
+        <span class="mod-badge" style="background:#f5f3ff;color:#6d28d9"><i class="fas fa-check" style="margin-right:3px"></i>All clear</span>
+        <?php endif; ?>
+        <span class="mod-badge" style="background:#f5f3ff;color:#6d28d9"><?=$blotter_total?> total</span>
+      </div>
     </a>
 
     <a href="equipment.php" class="mod-card amber">
@@ -418,7 +414,14 @@ main{padding:1.5rem;max-width:1200px;margin:0 auto}
       <div class="mod-icon amber"><i class="fas fa-box-archive"></i></div>
       <div class="mod-title">Equipment Borrowing</div>
       <div class="mod-desc">Manage barangay equipment lending, borrowing requests, and return tracking.</div>
-      <span class="mod-badge" style="background:#fffbeb;color:#92400e">Inventory</span>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <?php if($equip_borrowed>0): ?>
+        <span class="mod-badge" style="background:#fef3c7;color:#92400e"><i class="fas fa-hand-holding" style="margin-right:3px"></i><?=$equip_borrowed?> out</span>
+        <?php else: ?>
+        <span class="mod-badge" style="background:#fffbeb;color:#92400e"><i class="fas fa-check" style="margin-right:3px"></i>None out</span>
+        <?php endif; ?>
+        <span class="mod-badge" style="background:#fffbeb;color:#92400e">Inventory</span>
+      </div>
     </a>
 
     <a href="senior_citizen.php" class="mod-card green">
@@ -426,15 +429,19 @@ main{padding:1.5rem;max-width:1200px;margin:0 auto}
       <div class="mod-icon green"><i class="fas fa-person-cane"></i></div>
       <div class="mod-title">Senior Citizens</div>
       <div class="mod-desc">Registry of senior citizens with age tracking, birthday reminders, and benefits management.</div>
-      <span class="mod-badge" style="background:#f0fdf4;color:#15803d">Benefits & Records</span>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <?php if($senior_bday>0): ?>
+        <span class="mod-badge" style="background:#fef3c7;color:#92400e"><i class="fas fa-cake-candles" style="margin-right:3px"></i><?=$senior_bday?> bday this month</span>
+        <?php else: ?>
+        <span class="mod-badge" style="background:#f0fdf4;color:#15803d"><i class="fas fa-check" style="margin-right:3px"></i>No bdays this month</span>
+        <?php endif; ?>
+        <span class="mod-badge" style="background:#f0fdf4;color:#15803d">Benefits & Records</span>
+      </div>
     </a>
 
   </div>
 
-<?php endif; // end guest/non-guest main content ?>
-
-  <!-- CHART SLIDESHOW (non-guest only) -->
-  <?php if(!$is_guest): ?>
+  <!-- CHART SLIDESHOW -->
   <div class="section-label">Demographic Overview</div>
   <div class="chart-panel">
     <div class="chart-panel-head">
@@ -509,9 +516,6 @@ main{padding:1.5rem;max-width:1200px;margin:0 auto}
     </div>
     <div class="cdots" id="dots"></div>
   </div>
-  <?php endif; // end !$is_guest chart section ?>
-
-
 </main>
 <footer style="background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:center;padding:1.25rem 2rem;letter-spacing:.02em">
   &copy; <?=date('Y')?> ProjectRBI – Barangay 410 Census Management System · Manila City · All rights reserved.
@@ -747,27 +751,27 @@ mkHBar('laborChart',
 // Slide 9: House ownership — pie
 (function(){
   const pl=<?=json_encode($house_l)?>,pc=<?=json_encode($house_c)?>;
-  const palette=[COLORS.blue,COLORS.teal,COLORS.amber,COLORS.rose,COLORS.purple,COLORS.gray];
+  const palette=[COLORS.blue,COLORS.gray];
   const fl=[],fc=[],fc2=[];
-  pl.forEach((l,i)=>{if(pc[i]>0){fl.push(l);fc.push(pc[i]);fc2.push(palette[i%palette.length]);}});
+  pl.forEach((l,i)=>{if(pc[i]>0){fl.push(l);fc.push(pc[i]);fc2.push(palette[i]);}});
   if(fl.length)mkPie('houseChart',fl,fc,fc2);
 })();
 
 // Slide 10: Car ownership — donut
 (function(){
   const pl=<?=json_encode($car_l)?>,pc=<?=json_encode($car_c)?>;
-  const palette=[COLORS.blue,COLORS.rose,COLORS.gray];
+  const palette=[COLORS.blue,COLORS.gray];
   const fl=[],fc=[],fc2=[];
-  pl.forEach((l,i)=>{if(pc[i]>0){fl.push(l);fc.push(pc[i]);fc2.push(palette[i%palette.length]);}});
+  pl.forEach((l,i)=>{if(pc[i]>0){fl.push(l);fc.push(pc[i]);fc2.push(palette[i]);}});
   if(fl.length)mkDonut('carChart',fl,fc,fc2);
 })();
 
 // Slide 11: Motorcycle ownership — donut
 (function(){
   const pl=<?=json_encode($moto_l)?>,pc=<?=json_encode($moto_c)?>;
-  const palette=[COLORS.teal,COLORS.rose,COLORS.gray];
+  const palette=[COLORS.teal,COLORS.gray];
   const fl=[],fc=[],fc2=[];
-  pl.forEach((l,i)=>{if(pc[i]>0){fl.push(l);fc.push(pc[i]);fc2.push(palette[i%palette.length]);}});
+  pl.forEach((l,i)=>{if(pc[i]>0){fl.push(l);fc.push(pc[i]);fc2.push(palette[i]);}});
   if(fl.length)mkDonut('motoChart',fl,fc,fc2);
 })();
 </script>
@@ -778,11 +782,3 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-

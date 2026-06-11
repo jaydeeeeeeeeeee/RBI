@@ -422,8 +422,8 @@ tbody tr:last-child td{border-bottom:none}
 tbody tr:hover{background:#f8fafc}
 tbody tr.birthday-today{background:#f0fdf4}
 .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700}
-.badge-alive{background:#dcfce7;color:#15803d}
-.badge-deceased{background:#fee2e2;color:#dc2626}
+.badge-active{background:#dcfce7;color:#15803d}
+.badge-inactive{background:#f1f5f9;color:#475569}
 .badge-bday{background:#fef9c3;color:#a16207;margin-left:6px}
 .badge-today{background:#fde68a;color:#92400e;margin-left:6px}
 .age-pill{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#eff6ff;color:#1d4ed8}
@@ -499,8 +499,8 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
         <table>
           <tbody>
             <tr><td>Total Registered</td><td><?= $total ?></td></tr>
-            <tr><td>Active / Alive</td><td><?= $active ?></td></tr>
-            <tr><td>Deceased</td><td><?= $deceased ?></td></tr>
+            <tr><td>Active</td><td><?= $active ?></td></tr>
+            <tr><td>Inactive</td><td><?= $deceased ?></td></tr>
             <tr><td>Birthdays this month</td><td><?= count($bday_this_month) + count($bday_today) ?></td></tr>
             <tr><td>Birthdays today</td><td><?= count($bday_today) ?></td></tr>
           </tbody>
@@ -570,7 +570,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
       $sc_cards=[
         ['fa-person-cane',     '99,102,241','#a5b4fc',$total,              'Total'],
         ['fa-heart-pulse',     '34,197,94', '#86efac',$active,             'Active'],
-        ['fa-cross',           '244,63,94', '#fda4af',$deceased,           'Deceased'],
+        ['fa-cross',           '244,63,94', '#fda4af',$deceased,           'Inactive'],
         ['fa-cake-candles',    '245,158,11','#fbbf24',$bday_month,         'Bday This Month'],
         ['fa-bell',            '168,85,247','#d8b4fe',count($bday_today),  'Bday Today'],
       ];
@@ -587,7 +587,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
       <?php endforeach;?>
     </div>
   </div>
-  <div style="padding:14px 12px 6px">
+  <div style="padding:8px 12px 6px">
     <button onclick="openSettings()" class="sidebar-settings-btn" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);color:#93c5fd;font-family:Inter,sans-serif;font-size:13px;font-weight:600;cursor:pointer">
       <i class="fas fa-gear"></i> Settings & More<i class="fas fa-arrow-right" style="margin-left:auto;font-size:10px;opacity:.6"></i>
     </button>
@@ -599,14 +599,13 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
   </div>
   <div class="sidebar-section"><div class="sidebar-label">Modules</div>
     <a href="RBI.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-clipboard-list"></i></span> RBI Report</a>
-    <?php if(!$is_guest):?>
     <a href="data_tracking.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-database"></i></span> Document Tracking</a>
     <a href="eBlotter/eblotter_home.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-shield-halved"></i></span> E-Blotter</a>
     <a href="equipment.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-box-archive"></i></span> Equipment</a>
     <a href="senior_citizen.php" class="sidebar-link active"><span class="sidebar-icon"><i class="fas fa-person-cane"></i></span> Senior Citizens</a>
-    <?php endif;?>
   </div>
-  <div class="sidebar-footer"></div>
+  <div class="sidebar-footer">
+  </div>
 </aside>
 
 <div style="background:linear-gradient(to right,rgba(15,23,42,.85),rgba(15,23,42,.55)),url('images/Barangay_officials_410.png') center center/cover no-repeat;padding:2rem 2rem;min-height:300px;display:flex;align-items:center">
@@ -622,8 +621,8 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
 
   <div class="stat-row">
     <div class="scard"><div class="scard-num" style="color:#0f172a"><?=$total?></div><div class="scard-lbl">Total Registered</div></div>
-    <div class="scard"><div class="scard-num" style="color:#10b981"><?=$active?></div><div class="scard-lbl">Active / Alive</div></div>
-    <div class="scard"><div class="scard-num" style="color:#f43f5e"><?=$deceased?></div><div class="scard-lbl">Deceased</div></div>
+    <div class="scard"><div class="scard-num" style="color:#10b981"><?=$active?></div><div class="scard-lbl">Active</div></div>
+    <div class="scard"><div class="scard-num" style="color:#f43f5e"><?=$deceased?></div><div class="scard-lbl">Inactive</div></div>
     <div class="scard"><div class="scard-num" style="color:#f59e0b"><?=$bday_month?></div><div class="scard-lbl">Birthdays This Month</div></div>
   </div>
 
@@ -675,7 +674,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
           <td style="font-size:12px"><?=htmlspecialchars($row['gender']??'—')?></td>
           <td style="font-size:12px;max-width:180px"><?=htmlspecialchars($row['address']??'—')?></td>
           <td style="font-size:12px;color:#64748b"><?=htmlspecialchars($row['contact_number']??'—')?></td>
-          <td><span class="badge <?=$row['status']==='Active'?'badge-alive':'badge-deceased'?>"><?=$row['status']==='Active'?'Alive':'Deceased'?></span></td>
+          <td><span class="badge <?=$row['status']==='Active'?'badge-active':'badge-inactive'?>"><?=$row['status']==='Active'?'Active':'Inactive'?></span></td>
           <?php if($can_edit):?>
           <td style="white-space:nowrap">
             <button class="btn btn-outline btn-sm" onclick="openEdit(<?=htmlspecialchars(json_encode($row))?>)"><i class="fas fa-pen"></i> Edit</button>
@@ -779,8 +778,8 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
         </div>
         <div class="fg"><label>Status</label>
           <select name="status" id="edit_status">
-            <option value="Active">Active / Alive</option>
-            <option value="Deceased">Deceased</option>
+            <option value="Active">Active</option>
+            <option value="Deceased">Inactive</option>
           </select>
         </div>
       </div>

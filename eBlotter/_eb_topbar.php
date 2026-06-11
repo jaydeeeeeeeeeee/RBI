@@ -9,6 +9,7 @@ $_ebBadge   = match($_ebRole) {
 };
 $_ebActive  = $active_page ?? '';
 $_ebIsGuest = ($_ebRole === 'kagawad');
+$_ebIsChair = in_array($_ebRole, ['chairperson', 'captain'], true);
 
 // eBlotter stats for sidebar
 $_sb_total    = (int)($conn->query("SELECT COUNT(*) AS t FROM blotter_cases")->fetch_assoc()['t'] ?? 0);
@@ -100,7 +101,7 @@ $_sb_court    = (int)($conn->query("SELECT COUNT(*) AS t FROM blotter_cases WHER
     <a href="../Home.php" class="eb-sb-link"><span class="eb-sb-icon"><i class="fas fa-house"></i></span> Dashboard</a>
     <?php if (!$_ebIsGuest): ?>
     <a href="../Register.php" class="eb-sb-link"><span class="eb-sb-icon"><i class="fas fa-user-plus"></i></span> Register Resident</a>
-    <?php if ($_ebRole === 'chairperson'): ?>
+    <?php if ($_ebIsChair): ?>
     <a href="../manage_accounts.php" class="eb-sb-link"><span class="eb-sb-icon" style="background:rgba(245,158,11,.15);color:#f59e0b"><i class="fas fa-users-gear"></i></span> Manage Accounts</a>
     <?php endif; ?>
     <a href="../Display_List.php" class="eb-sb-link"><span class="eb-sb-icon"><i class="fas fa-users"></i></span> Residents</a>
@@ -112,7 +113,7 @@ $_sb_court    = (int)($conn->query("SELECT COUNT(*) AS t FROM blotter_cases WHER
     <div class="eb-sb-label">Modules</div>
     <a href="../RBI.php" class="eb-sb-link"><span class="eb-sb-icon"><i class="fas fa-clipboard-list"></i></span> RBI Report</a>
     <?php if (!$_ebIsGuest): ?>
-    <a href="../data_tracking.php" class="eb-sb-link"><span class="eb-sb-icon"><i class="fas fa-database"></i></span> Document Tracking</a>
+    <a href="../docu_tracking_home.php" class="eb-sb-link"><span class="eb-sb-icon"><i class="fas fa-database"></i></span> Document Tracking</a>
     <a href="eblotter_home.php" class="eb-sb-link <?= $_ebActive==='home'?'active':'' ?>"><span class="eb-sb-icon"><i class="fas fa-shield-halved"></i></span> E-Blotter</a>
     <a href="../equipment.php" class="eb-sb-link"><span class="eb-sb-icon"><i class="fas fa-box-archive"></i></span> Equipment</a>
     <a href="../senior_citizen.php" class="eb-sb-link"><span class="eb-sb-icon"><i class="fas fa-person-cane"></i></span> Senior Citizens</a>

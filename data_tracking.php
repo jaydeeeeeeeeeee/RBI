@@ -4,7 +4,7 @@ if (!isset($_SESSION['admin'])) { header("Location: admin.php"); exit(); }
 include 'Residents_DB.php';
 include 'role_helper.php';
 include 'signatory_helper.php';
-if ($is_guest) { header("Location: Home.php?denied=tracking"); exit(); }
+
 
 $admin = $_SESSION['admin'];
 $ip    = $_SERVER['REMOTE_ADDR'];
@@ -411,7 +411,7 @@ $_dt_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
     </div>
     <button class="sidebar-close-btn" onclick="closeSidebar()"><i class="fas fa-times"></i></button>
   </div>
-  <div style="padding:14px 12px 6px"><button onclick="openSettings()" class="sidebar-settings-btn" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);color:#93c5fd;font-family:Inter,sans-serif;font-size:13px;font-weight:600;cursor:pointer"><i class="fas fa-gear"></i> Settings & More<i class="fas fa-arrow-right" style="margin-left:auto;font-size:10px;opacity:.6"></i></button></div>
+  <div style="padding:8px 12px 6px"><button onclick="openSettings()" class="sidebar-settings-btn" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);color:#93c5fd;font-family:Inter,sans-serif;font-size:13px;font-weight:600;cursor:pointer"><i class="fas fa-gear"></i> Settings & More<i class="fas fa-arrow-right" style="margin-left:auto;font-size:10px;opacity:.6"></i></button></div>
 
   <!-- Quick stats -->
   <div style="padding:12px 10px 10px;border-bottom:1px solid rgba(255,255,255,.07)">
@@ -442,12 +442,13 @@ $_dt_dist = defined('BRGY_DISTRICT') ? htmlspecialchars(BRGY_DISTRICT) : 'IV';
   </div>
   <div class="sidebar-section"><div class="sidebar-label">Modules</div>
     <a href="RBI.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-clipboard-list"></i></span> RBI Report</a>
-    <a href="data_tracking.php" class="sidebar-link active"><span class="sidebar-icon"><i class="fas fa-database"></i></span> Document Tracking</a>
+    <a href="docu_tracking_home.php" class="sidebar-link active"><span class="sidebar-icon"><i class="fas fa-database"></i></span> Document Tracking</a>
     <a href="eBlotter/eblotter_home.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-shield-halved"></i></span> E-Blotter</a>
     <a href="equipment.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-box-archive"></i></span> Equipment</a>
     <a href="senior_citizen.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-person-cane"></i></span> Senior Citizens</a>
   </div>
-  <div class="sidebar-footer"></div>
+  <div class="sidebar-footer">
+  </div>
 </aside>
 
 <!-- HERO -->

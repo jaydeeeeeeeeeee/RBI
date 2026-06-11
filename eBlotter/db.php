@@ -182,6 +182,5 @@ $conn->query("CREATE TABLE IF NOT EXISTS eb_signer_settings (
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-// Seed default signer if table is empty; migrate away from hardcoded legacy default
+// Seed default signer only if table is empty — never overwrite a saved value
 $conn->query("INSERT IGNORE INTO eb_signer_settings (id, signer_name) VALUES (1, '" . $conn->real_escape_string($_default_signer) . "')");
-$conn->query("UPDATE eb_signer_settings SET signer_name='" . $conn->real_escape_string($_default_signer) . "' WHERE id=1 AND signer_name='BRENDA S. PUERTOLLANO'");
