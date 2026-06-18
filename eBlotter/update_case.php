@@ -2,6 +2,12 @@
 require_once __DIR__.'/auth.php';
 requireRole(['chairperson','secretary']);
 
+// Chairman cannot edit cases — redirect to view_cases
+if (isChairperson()) {
+    header('Location: view_cases.php?denied=chairman');
+    exit();
+}
+
 function fmt_name($l,$f,$m){ return trim("$l, $f $m"); }
 function status_chip($s){ return match($s){'Ongoing'=>'chip-ongoing','Resolved'=>'chip-resolved',default=>'chip-pending'}; }
 

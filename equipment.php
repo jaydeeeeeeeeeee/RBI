@@ -3,7 +3,7 @@ session_start();
 if (!isset($_SESSION['admin'])) { header("Location: admin.php"); exit(); }
 include 'Residents_DB.php';
 include 'role_helper.php';
-if ($is_guest) { header("Location: Home.php?denied=equipment"); exit(); }
+
 
 $admin = $_SESSION['admin'];
 
@@ -658,28 +658,53 @@ main{padding:1.75rem 2rem;max-width:1600px;width:min(100%,1600px);margin:0 auto}
     </div>
     <button class="sidebar-close-btn" onclick="closeSidebar()"><i class="fas fa-times"></i></button>
   </div>
-  <div style="padding:14px 12px 6px"><button onclick="openSettings()" class="sidebar-settings-btn" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);color:#93c5fd;font-family:Inter,sans-serif;font-size:13px;font-weight:600;cursor:pointer"><i class="fas fa-gear"></i> Settings & More<i class="fas fa-arrow-right" style="margin-left:auto;font-size:10px;opacity:.6"></i></button></div>
-  <div class="sidebar-section">
+  <div style="padding:8px 12px 6px"><button onclick="openSettings()" class="sidebar-settings-btn" style="width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);color:#93c5fd;font-family:Inter,sans-serif;font-size:13px;font-weight:600;cursor:pointer"><i class="fas fa-gear"></i> Settings & More<i class="fas fa-arrow-right" style="margin-left:auto;font-size:10px;opacity:.6"></i></button></div>
+
+  <!-- Equipment Summary -->
+  <div style="padding:10px 12px 12px;border-bottom:1px solid rgba(255,255,255,.07)">
+    <div class="sidebar-label" style="margin-bottom:8px">Equipment Summary</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <?php
+      $equip_total_count = (int)($conn->query("SELECT COUNT(*) AS t FROM equipment")->fetch_assoc()['t'] ?? 0);
+      $overdue_count     = (int)($conn->query("SELECT COUNT(*) AS t FROM equipment_borrowing WHERE status='Overdue'")->fetch_assoc()['t'] ?? 0);
+      $pending_borrow    = (int)($conn->query("SELECT COUNT(*) AS t FROM equipment_borrowing WHERE status='Pending'")->fetch_assoc()['t'] ?? 0);
+      $returned_count    = (int)($conn->query("SELECT COUNT(*) AS t FROM equipment_borrowing WHERE status='Returned'")->fetch_assoc()['t'] ?? 0);
+      $eq_cards = [
+        ['fa-boxes-stacked',  '59,130,246', '#93c5fd', $equip_total_count, 'Total Items'],
+        ['fa-check-circle',   '34,197,94',  '#86efac', $avail_total,       'Available'],
+        ['fa-hand-holding',   '245,158,11', '#fbbf24', $borrowed_count,    'Borrowed'],
+        ['fa-triangle-exclamation','244,63,94','#fda4af',$overdue_count,   'Overdue'],
+        ['fa-clock',          '168,85,247', '#d8b4fe', $pending_borrow,    'Pending'],
+        ['fa-rotate-left',    '20,184,166', '#5eead4', $returned_count,    'Returned'],
+      ];
+      foreach($eq_cards as [$ico,$rgb,$tc,$val,$lbl]):?>
+      <div style="background:rgba(255,255,255,.05);border-radius:9px;padding:8px;display:flex;align-items:center;gap:7px">
+        <div style="width:28px;height:28px;border-radius:7px;background:rgba(<?=$rgb?>,.22);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="fas <?=$ico?>" style="font-size:11px;color:<?=$tc?>"></i>
+        </div>
+        <div>
+          <div style="font-size:16px;font-weight:800;color:<?=$tc?>;line-height:1"><?=$val?></div>
+          <div style="font-size:9.5px;color:rgba(255,255,255,.4);margin-top:1px"><?=$lbl?></div>
+        </div>
+      </div>
+      <?php endforeach;?>
+    </div>
+  </div>
     <div class="sidebar-label">Main</div>
     <a href="Home.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-house"></i></span> Dashboard</a>
-    <?php if(!$is_guest): ?>
     <?php if($can_register): ?><a href="Register.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-user-plus"></i></span> Register Resident</a><?php endif; ?>
     <?php if($is_captain): ?><a href="manage_accounts.php" class="sidebar-link"><span class="sidebar-icon" style="background:rgba(245,158,11,.15);color:#f59e0b"><i class="fas fa-users-gear"></i></span> Manage Accounts</a><?php endif; ?>
     <a href="Display_List.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-users"></i></span> Residents</a>
-    <?php endif; ?>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-label">Modules</div>
     <a href="RBI.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-clipboard-list"></i></span> RBI Report</a>
-    <?php if(!$is_guest): ?>
     <a href="data_tracking.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-database"></i></span> Document Tracking</a>
     <a href="eBlotter/eblotter_home.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-shield-halved"></i></span> E-Blotter</a>
     <a href="equipment.php" class="sidebar-link active"><span class="sidebar-icon" style="background:rgba(245,158,11,.15);color:#f59e0b"><i class="fas fa-box-archive"></i></span> Equipment</a>
     <a href="senior_citizen.php" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-person-cane"></i></span> Senior Citizens</a>
-    <?php endif; ?>
   </div>
   <div class="sidebar-footer">
-    <a href="logout.php" class="sidebar-logout"><span class="sidebar-logout-icon"><i class="fas fa-right-from-bracket"></i></span> Logout</a>
   </div>
 </aside>
 

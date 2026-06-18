@@ -5,15 +5,15 @@ require_once __DIR__.'/db.php';
 date_default_timezone_set('Asia/Manila');
 
 // Bridge ProjectRBI session → eBlotter session format
-// ProjectRBI roles: captain → chairperson, secretary → secretary, guest → kagawad
+// ProjectRBI roles: captain → chairperson, secretary → secretary
+// Guest role has been removed.
 if (isset($_SESSION['admin']) && !isset($_SESSION['eb_user'])) {
     $roleMap = [
         'captain'   => 'chairperson',
         'secretary' => 'secretary',
-        'guest'     => 'kagawad',
     ];
-    $rbi_role = $_SESSION['role'] ?? 'guest';
-    $eb_role  = $roleMap[$rbi_role] ?? 'kagawad';
+    $rbi_role = $_SESSION['role'] ?? 'secretary';
+    $eb_role  = $roleMap[$rbi_role] ?? 'secretary';
     $_SESSION['eb_user'] = [
         'id'        => $_SESSION['admin_id'] ?? 0,
         'username'  => $_SESSION['admin'],
@@ -26,10 +26,11 @@ function currentUser(): ?array { return $_SESSION['eb_user'] ?? null; }
 function currentRole(): string { return $_SESSION['eb_user']['role'] ?? ''; }
 function isChairperson(): bool  { return currentRole() === 'chairperson'; }
 function isSecretary():  bool   { return currentRole() === 'secretary';  }
-function isKagawad():    bool   { return currentRole() === 'kagawad';    }
-function canEdit():      bool   { return in_array(currentRole(), ['chairperson','secretary']); }
+function canEdit():      bool   { return currentRole() === 'secretary'; }  // Secretary only
+function canView():      bool   { return in_array(currentRole(), ['chairperson','secretary']); }
+function canAcknowledge(): bool { return currentRole() === 'chairperson'; } // Captain approves blotter resolutions
 
-function requireRole(array $allowed = ['chairperson','secretary','kagawad']): void {
+function requireRole(array $allowed = ['chairperson','secretary']): void {
     $u = currentUser();
     if (!$u) { header('Location: ../admin.php'); exit(); }
     if (!in_array($u['role'], $allowed)) { header('Location: eblotter_home.php?denied=1'); exit(); }

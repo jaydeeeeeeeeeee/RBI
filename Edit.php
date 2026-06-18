@@ -4,8 +4,8 @@ if (!isset($_SESSION['admin'])) { header("Location: admin.php"); exit(); }
 include 'Residents_DB.php';
 include 'generate_id.php';
 include 'role_helper.php';
-// Block guests from editing
-if($is_guest){
+// Block Chairman from editing — secretary only
+if(!$can_edit){
     header("Location: Display_List.php?denied=edit"); exit();
 }
 ensureResidentCodeColumn($conn);
@@ -847,11 +847,3 @@ function resetZoom(){zoomLvl=1;localStorage.setItem('rbi_zoom','1');applyZoom();
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-

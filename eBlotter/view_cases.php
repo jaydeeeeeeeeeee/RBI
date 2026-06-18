@@ -136,6 +136,12 @@ include '_eb_topbar.php';
 include '_eb_hero.php';
 ?>
 <main style="padding:1.5rem;max-width:1200px;margin:0 auto">
+<?php if(isset($_GET['denied'])): ?>
+<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 18px;margin-bottom:1rem;display:flex;align-items:center;gap:10px;font-size:13px;color:#92400e">
+  <i class="fas fa-star" style="color:#f59e0b;font-size:16px;flex-shrink:0"></i>
+  <span>That action is restricted to the <strong>Barangay Secretary</strong>. You are in monitoring mode.</span>
+</div>
+<?php endif; ?>
 
   <form method="get" id="filterForm">
     <div class="toolbar">
@@ -395,9 +401,34 @@ include '_eb_hero.php';
 
                   </div>
                 </div>
-                <?php endif; ?>
+                <?php endif; // canEdit ?>
 
-              </div>
+                <?php if(isChairperson()): ?>
+                <!-- CHAIRMAN: workflow progress view only — no action buttons -->
+                <div class="dl" style="margin-top:.25rem;">
+                  <?php
+                  $summonsDone   = !empty($row['summons_done']);
+                  $noticeDone    = !empty($row['notice_done']);
+                  $mediationDone = !empty($row['mediation_done']);
+                  $s1cls = $summonsDone ? 'done' : 'locked';
+                  $s2cls = $noticeDone  ? 'done' : 'locked';
+                  $s3cls = $mediationDone ? 'done' : 'locked';
+                  ?>
+                  <div class="case-steps">
+                    <div class="cs-step <?= $s1cls ?>"><span class="cs-num"><?= $summonsDone?'✓':'1'?></span>Summons</div>
+                    <div class="cs-arrow"></div>
+                    <div class="cs-step <?= $s2cls ?>"><span class="cs-num"><?= $noticeDone?'✓':'2'?></span>Notice of Hearing</div>
+                    <div class="cs-arrow"></div>
+                    <div class="cs-step <?= $s3cls ?>"><span class="cs-num"><?= $mediationDone?'✓':'3'?></span>Mediation Minutes</div>
+                    <div class="cs-arrow"></div>
+                    <div class="cs-step <?= $st==='Resolved'?'done':'locked'?>"><span class="cs-num"><?= $st==='Resolved'?'✓':'4'?></span>Resolved</div>
+                  </div>
+                  <div style="font-size:11px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:7px;padding:6px 10px;margin-top:.5rem;display:flex;align-items:center;gap:6px">
+                    <i class="fas fa-star" style="color:#f59e0b"></i>
+                    Monitoring mode — case actions are managed by the <strong style="margin-left:2px">Barangay Secretary</strong>.
+                  </div>
+                </div>
+                <?php endif; // isChairperson ?>
             </td>
           </tr>
           <?php endforeach; ?>

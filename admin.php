@@ -1,4 +1,5 @@
 <?php
+mysqli_report(MYSQLI_REPORT_OFF);
 session_start();
 
 $host='localhost';$user='root';$pass='';$dbname='projectrbi';
@@ -728,7 +729,6 @@ html,body{height:100%;overflow:hidden;font-family:'Inter',sans-serif}
 </div>
 
 <script>
-// ── Login modal ────────────────────────────────────────────────────────────
 function openLogin(){
   document.getElementById('modalOverlay').classList.add('open');
   document.getElementById('modalBox').classList.add('open');
@@ -747,7 +747,7 @@ function closeReset(){
 }
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeLogin();closeReset();}});
 <?php if(!empty($error)):?>
-document.addEventListener('DOMContentLoaded',openLogin);
+document.addEventListener('DOMContentLoaded', openLogin);
 <?php endif;?>
 <?php if(!empty($resetStatus)):?>
 document.addEventListener('DOMContentLoaded',openReset);

@@ -1,6 +1,6 @@
 ﻿<?php
 require_once __DIR__.'/auth.php';
-requireRole(['chairperson','secretary']); // documents: kagawad cannot access
+requireRole(['chairperson','secretary']); // documents: secretary only
 
 $case_id = trim($_GET['case_id'] ?? '');
 

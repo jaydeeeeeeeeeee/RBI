@@ -2,7 +2,7 @@
 session_start();
 include 'Residents_DB.php';
 include 'role_helper.php';
-if($is_guest){ header("Location: Home.php?denied=register"); exit(); }
+if(!$can_register){ header("Location: Home.php?denied=register"); exit(); }
 $initial_mode = (isset($_GET['mode']) && $_GET['mode'] === 'bulk') ? 'bulk' : 'single';
 include 'generate_id.php';
 // Auto-create resident_code column if missing
@@ -278,7 +278,7 @@ if (isset($_POST['citizenship']) && in_array($_POST['citizenship'], ['Other', 'D
     <title>Census of Inhabitants</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <link rel="stylesheet" href="assets/css/main.css?v=<?=filemtime(__DIR__.'/assets/css/main.css')?>"/>
 </head>
 <body>

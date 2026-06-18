@@ -3,7 +3,9 @@ session_start();
 if(!isset($_SESSION['admin'])){header("Location: admin.php");exit();}
 include 'Admin_DB.php';
 include 'role_helper.php';
-if(!$is_captain){header("Location: Home.php?denied=accounts");exit();}
+if(!$is_secretary && !$is_captain){header("Location: Home.php?denied=accounts");exit();}
+// Account management has moved to the Super Admin panel
+// This page is kept for reference but account creation/deletion is Super Admin only
 
 // Auto-add columns if missing
 $conn->query("ALTER TABLE admins ADD COLUMN IF NOT EXISTS role ENUM('captain','secretary','guest') NOT NULL DEFAULT 'secretary'");
@@ -45,42 +47,44 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     csrf_verify();
     $action=trim($_POST['action']??'');
 
-    // CREATE ACCOUNT
+    // CREATE ACCOUNT — Secretary only (Super Admin is the main account manager)
     if($action==='create'){
-        $uname = trim($_POST['username']??'');
-        $fname = trim($_POST['full_name']??'');
-        $role  = $_POST['role']??'guest';
-        $pw    = trim($_POST['password']??'');
-        $pw2   = trim($_POST['password2']??'');
-
-        if(empty($uname)||empty($fname)||empty($pw)){
-            $err="Username, full name, and password are required.";
-        } elseif($pw !== $pw2){
-            $err="Passwords do not match.";
-        } elseif(strlen($pw)<6){
-            $err="Password must be at least 6 characters.";
-        } elseif(!in_array($role,['secretary','guest'])){
-            $err="Invalid role. Captain cannot be created here.";
+        if(!$is_secretary){
+            $err="Account creation is handled by the Super Admin.";
         } else {
-            // Check if username exists
-            $check=$conn->prepare("SELECT id FROM admins WHERE username=?");
-            $check->bind_param("s",$uname);$check->execute();
-            if($check->get_result()->num_rows>0){
-                $err="Username '$uname' already exists.";
+            $uname = trim($_POST['username']??'');
+            $fname = trim($_POST['full_name']??'');
+            $role  = 'secretary';
+            $pw    = trim($_POST['password']??'');
+            $pw2   = trim($_POST['password2']??'');
+
+            if(empty($uname)||empty($fname)||empty($pw)){
+                $err="Username, full name, and password are required.";
+            } elseif($pw !== $pw2){
+                $err="Passwords do not match.";
+            } elseif(strlen($pw)<6){
+                $err="Password must be at least 6 characters.";
+            } elseif($role!=='secretary'){
+                $err="Invalid role. Only Secretary accounts can be created here.";
             } else {
-                $hash=password_hash($pw,PASSWORD_BCRYPT);
-                $uname_e=mysqli_real_escape_string($conn,$uname);
-                $fname_e=mysqli_real_escape_string($conn,$fname);
-                $role_e =mysqli_real_escape_string($conn,$role);
-                $conn->query("INSERT INTO admins (username,password,role,full_name,is_active) VALUES ('$uname_e','$hash','$role_e','$fname_e',1)");
-                $msg="Account '@$uname' created successfully as ".ucfirst($role).".";
-                // Log it
-                $by=mysqli_real_escape_string($conn,$_SESSION['admin']);
-                $ip=mysqli_real_escape_string($conn,$_SERVER['REMOTE_ADDR']);
-                $conn->query("INSERT INTO access_log (event_type,detail,performed_by,role,ip_address) VALUES ('ACCOUNT_CREATED','Created account: $uname_e ($role_e)','$by','captain','$ip')");
+                $check=$conn->prepare("SELECT id FROM admins WHERE username=?");
+                $check->bind_param("s",$uname);$check->execute();
+                if($check->get_result()->num_rows>0){
+                    $err="Username '$uname' already exists.";
+                } else {
+                    $hash=password_hash($pw,PASSWORD_BCRYPT);
+                    $uname_e=mysqli_real_escape_string($conn,$uname);
+                    $fname_e=mysqli_real_escape_string($conn,$fname);
+                    $role_e =mysqli_real_escape_string($conn,$role);
+                    $conn->query("INSERT INTO admins (username,password,role,full_name,is_active) VALUES ('$uname_e','$hash','$role_e','$fname_e',1)");
+                    $msg="Account '@$uname' created successfully as ".ucfirst($role).".";
+                    $by=mysqli_real_escape_string($conn,$_SESSION['admin']);
+                    $ip=mysqli_real_escape_string($conn,$_SERVER['REMOTE_ADDR']);
+                    $conn->query("INSERT INTO access_log (event_type,detail,performed_by,role,ip_address) VALUES ('ACCOUNT_CREATED','Created account: $uname_e ($role_e)','$by','secretary','$ip')");
+                }
             }
         }
-    }
+    } // end create
     // TOGGLE ACTIVE
     elseif($action==='toggle'){
         $uid=(int)$_POST['uid'];
@@ -111,11 +115,14 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $conn->query("UPDATE admins SET full_name='$fn' WHERE id=$uid");
         $msg="Name updated.";
     }
-    // DELETE ACCOUNT
+    // DELETE ACCOUNT — Secretary only
     elseif($action==='delete'){
-        $uid=(int)$_POST['uid'];
-        $conn->query("DELETE FROM admins WHERE id=$uid AND role!='captain'");
-        $msg="Account deleted.";
+        if(!$is_secretary){ $err="Account deletion is handled by the Super Admin."; }
+        else {
+            $uid=(int)$_POST['uid'];
+            $conn->query("DELETE FROM admins WHERE id=$uid AND role!='captain'");
+            $msg="Account deleted.";
+        }
     }
     // RESOLVE RESET REQUEST
     elseif($action==='resolve_reset'){
@@ -158,7 +165,6 @@ $logs=$conn->query("SELECT * FROM access_log ORDER BY created_at DESC LIMIT 30")
 $role_info=[
     'captain'  =>['#d97706','#fffbeb','#fde68a','fa-star',  'Full system control'],
     'secretary'=>['#2563eb','#eff6ff','#bfdbfe','fa-user-tie','Register, edit, manage residents'],
-    'guest'    =>['#475569','#f1f5f9','#e2e8f0','fa-eye',   'View-only access'],
 ];
 ?>
 <!DOCTYPE html>
@@ -170,9 +176,6 @@ $role_info=[
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
 <link rel="stylesheet" href="assets/css/main.css?v=<?=filemtime(__DIR__.'/assets/css/main.css')?>"/>
 <style>
-.page-top{background:#0f172a;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
-.page-top h1{color:#fff;font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800}
-.page-top p{color:rgba(255,255,255,.45);font-size:12px;margin-top:2px}
 main{padding:1.5rem;max-width:980px;margin:0 auto}
 .tabs{display:flex;border-bottom:2px solid #e2e8f0;margin-bottom:1.25rem;gap:4px}
 .tab-btn{padding:8px 18px;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;background:none;border-top:none;border-left:none;border-right:none;font-family:'Inter',sans-serif;transition:all .2s}
@@ -202,12 +205,6 @@ main{padding:1.5rem;max-width:980px;margin:0 auto}
 
 .create-card{background:#fff;border:2px dashed #e2e8f0;border-radius:14px;padding:2rem;margin-bottom:1.25rem;transition:border-color .2s}
 .create-card:hover{border-color:#3b82f6}
-.role-select-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem}
-.role-opt{border:2px solid #e2e8f0;border-radius:10px;padding:12px;cursor:pointer;transition:all .2s;text-align:center;position:relative}
-.role-opt:hover{border-color:#94a3b8}
-.role-opt input{position:absolute;opacity:0;width:0;height:0}
-.role-opt.selected-secretary{border-color:#3b82f6;background:#eff6ff}
-.role-opt.selected-guest{border-color:#64748b;background:#f1f5f9}
 .form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media(max-width:500px){.form-row-2,.role-select-grid{grid-template-columns:1fr}}
 
@@ -257,10 +254,6 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
   </div>
 </header>
 
-<div class="page-top">
-  <div><h1><i class="fas fa-users-gear" style="margin-right:8px;opacity:.7"></i>Manage Accounts</h1><p>Captain-only · Create, manage, and monitor system accounts</p></div>
-</div>
-
 <main>
   <?php if($msg):?><div class="alert alert-success" style="margin-bottom:1rem"><i class="fas fa-check-circle"></i> <?=htmlspecialchars($msg)?></div><?php endif;?>
   <?php if($err):?><div class="alert alert-error" style="margin-bottom:1rem"><i class="fas fa-exclamation-triangle"></i> <?=htmlspecialchars($err)?></div><?php endif;?>
@@ -297,9 +290,13 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
   </div>
   <?php endif;?>
 
-  <div class="captain-note">
-    <i class="fas fa-star"></i>
-    <span>Only the <strong>Barangay Captain</strong> can create accounts, change passwords, and activate/deactivate users. The Captain account cannot be modified here.</span>
+  <div class="captain-note" style="background:#eff6ff;border-color:#bfdbfe;color:#1e40af">
+    <i class="fas fa-shield-halved"></i>
+    <span>
+      <strong>Note:</strong> Full account management (create, delete, role changes) is handled by the <strong>Super Admin</strong>.
+      The Secretary can reset passwords and activate/deactivate accounts here.
+      <?php if($is_captain): ?>You are in <strong>monitoring mode</strong> — changes here are restricted to the Secretary.<?php endif; ?>
+    </span>
   </div>
 
   <div class="tabs">
@@ -392,28 +389,12 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
   <div id="tab-create" class="tab-pane">
     <div class="create-card">
       <h2 style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:800;color:#0f172a;margin-bottom:4px"><i class="fas fa-user-plus" style="color:#3b82f6;margin-right:8px"></i>Create New Account</h2>
-      <p style="font-size:13px;color:#64748b;margin-bottom:1.25rem">Add a secretary or guest account. Captain accounts cannot be created here.</p>
+      <p style="font-size:13px;color:#64748b;margin-bottom:1.25rem">Add a secretary account. Captain accounts cannot be created here.</p>
 
       <form method="POST">
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="create">
-
-        <!-- Role selector -->
-        <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px">Select Role *</div>
-        <div class="role-select-grid" id="roleGrid">
-          <label class="role-opt selected-secretary" id="opt-secretary" onclick="selectRole('secretary')">
-            <input type="radio" name="role" value="secretary" checked>
-            <div style="font-size:22px;margin-bottom:6px;color:#2563eb"><i class="fas fa-user-tie"></i></div>
-            <div style="font-size:13px;font-weight:700;color:#0f172a">Secretary</div>
-            <div style="font-size:11px;color:#64748b;margin-top:3px">Register, edit, manage residents</div>
-          </label>
-          <label class="role-opt" id="opt-guest" onclick="selectRole('guest')">
-            <input type="radio" name="role" value="guest">
-            <div style="font-size:22px;margin-bottom:6px;color:#475569"><i class="fas fa-eye"></i></div>
-            <div style="font-size:13px;font-weight:700;color:#0f172a">Guest</div>
-            <div style="font-size:11px;color:#64748b;margin-top:3px">View-only access</div>
-          </label>
-        </div>
+        <input type="hidden" name="role" value="secretary">
 
         <div class="form-row-2" style="margin-bottom:12px">
           <div class="fg"><label>Full Name *</label><input type="text" name="full_name" placeholder="e.g. Maria Santos" required></div>
@@ -429,7 +410,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
         </div>
 
         <!-- Role permissions preview -->
-        <div id="rolePreview" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:12px 14px;margin-bottom:1.25rem;font-size:13px;color:#1d4ed8">
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:12px 14px;margin-bottom:1.25rem;font-size:13px;color:#1d4ed8">
           <i class="fas fa-user-tie" style="margin-right:7px"></i>
           <strong>Secretary:</strong> Can register residents, edit records, process document requests, and generate RBI reports. Cannot manage other accounts.
         </div>
@@ -484,29 +465,6 @@ function switchTab(t,btn){
   btn.classList.add('active');
 }
 function tpw(id,btn){const inp=document.getElementById(id);const show=inp.type==='password';inp.type=show?'text':'password';btn.querySelector('i').className=show?'fas fa-eye-slash':'fas fa-eye';}
-function selectRole(r){
-  ['secretary','guest'].forEach(role=>{
-    const el=document.getElementById('opt-'+role);
-    el.className='role-opt'+(role===r?' selected-'+role:'');
-    el.querySelector('input').checked=(role===r);
-  });
-  const prev=document.getElementById('rolePreview');
-  if(r==='secretary'){
-    prev.style.background='#eff6ff';prev.style.borderColor='#bfdbfe';prev.style.color='#1d4ed8';
-    prev.innerHTML='<i class="fas fa-user-tie" style="margin-right:7px"></i><strong>Secretary:</strong> Can register residents, edit records, process document requests, and generate RBI reports. Cannot manage other accounts.';
-  } else {
-    prev.style.background='#f1f5f9';prev.style.borderColor='#e2e8f0';prev.style.color='#475569';
-    prev.innerHTML='<i class="fas fa-eye" style="margin-right:7px"></i><strong>Guest:</strong> View-only access. Can browse residents, view RBI report, and see charts. Cannot edit, register, or delete anything.';
-  }
-}
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-

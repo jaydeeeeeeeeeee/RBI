@@ -3,7 +3,6 @@ session_start();
 if (!isset($_SESSION['admin'])) { header("Location: admin.php"); exit(); }
 include 'Residents_DB.php';
 include 'role_helper.php';
-if($is_guest){ header("Location: Home.php?denied=residents"); exit(); }
 include 'generate_id.php';
 
 $ip     = $_SERVER['REMOTE_ADDR'];
@@ -51,7 +50,7 @@ $f_gender     = $_GET['gender'] ?? '';
 $f_marital    = $_GET['marital_status'] ?? '';
 $show_hidden  = isset($_GET['show_hidden']) && $_GET['show_hidden'] == '1';
 
-if ($list_unlocked || $is_guest) {
+if ($list_unlocked) {
     // Ensure resident_code column exists (safe migration)
     ensureResidentCodeColumn($conn);
     // Ensure geocoding columns exist
@@ -289,22 +288,15 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
     <div><div class="topbar-name">Barangay 410</div></div>
   </a>
   <div class="topbar-right" style="margin-left:auto">
-    <?php if($is_guest): ?>
-    <div class="unlock-info" style="background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.2)">
-      <span class="unlock-dot" style="background:#fbbf24"></span> Guest Mode
-    </div>
-    <div title="Kagawad Viewer" style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(148,163,184,.15);border:1px solid rgba(148,163,184,.3)">
-      <i class="fas fa-eye" style="font-size:12px;color:#94a3b8"></i>
-    </div>
-    <?php elseif($list_unlocked): ?>
-    <div title="<?=$rbadge['label']?>" style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;<?php if($is_captain): ?>background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#fbbf24;<?php elseif($is_secretary): ?>background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:#93c5fd;<?php else: ?>background:rgba(148,163,184,.15);border:1px solid rgba(148,163,184,.3);color:#94a3b8;<?php endif; ?>">
+    <?php if($list_unlocked): ?>
+    <div title="<?=$rbadge['label']?>" style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;<?php if($is_captain): ?>background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#fbbf24;<?php else: ?>background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:#93c5fd;<?php endif; ?>">
       <i class="fas <?=$rbadge['icon']?>" style="font-size:12px"></i>
     </div>
     <?php if($can_register): ?>
     <a href="Register.php" class="btn btn-primary" style="font-size:13px"><i class="fas fa-user-plus"></i> Register</a>
     <?php endif; ?>
     <?php else: ?>
-    <div title="<?=$rbadge['label']?>" style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;<?php if($is_captain): ?>background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#fbbf24;<?php elseif($is_secretary): ?>background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:#93c5fd;<?php else: ?>background:rgba(148,163,184,.15);border:1px solid rgba(148,163,184,.3);color:#94a3b8;<?php endif; ?>">
+    <div title="<?=$rbadge['label']?>" style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;<?php if($is_captain): ?>background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#fbbf24;<?php else: ?>background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:#93c5fd;<?php endif; ?>">
       <i class="fas <?=$rbadge['icon']?>" style="font-size:12px"></i>
     </div>
     <?php endif; ?>
@@ -374,7 +366,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
         <span id="darkThumb" style="position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;transition:left .25s"></span>
       </button>
     </div>
-    <?php if(!$is_guest): ?>
+    <?php if($can_import): ?>
     <!-- DATA SECTION -->
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Residents Data</div>
 
@@ -423,7 +415,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
       </form>
     </div>
 
-    <!-- Export Excel -->
+    <!-- Export CSV -->
     <div style="background:rgba(255,255,255,.05);border-radius:10px;padding:12px 14px;margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
         <div style="width:30px;height:30px;background:rgba(34,197,94,.15);border-radius:8px;display:flex;align-items:center;justify-content:center">
@@ -439,7 +431,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
         <i class="fas fa-download"></i> Export
       </button>
     </div>
-    <?php endif; // !$is_guest data section ?>
+    <?php endif; // can_import ?>
 
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.3);margin-bottom:8px">Actions</div>
     <a href="signatory_settings.php" style="width:100%;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.05);border:none;border-radius:10px;padding:12px 14px;margin-bottom:8px;text-decoration:none">
@@ -460,13 +452,9 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
 <div style="background:linear-gradient(to right,rgba(15,23,42,.85),rgba(15,23,42,.55)),url('images/Barangay_officials_410.png') center center/cover no-repeat;padding:2.5rem 2rem;min-height:300px;display:flex;align-items:center">
   <div style="max-width:1200px;width:100%">
     <h1 style="font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;color:#fff;margin:0 0 .35rem"><i class="fas fa-users" style="margin-right:.5rem;opacity:.8"></i>Residents List</h1>
-    <?php if($is_guest || !$list_unlocked):?>
+    <?php if(!$list_unlocked):?>
     <p style="color:rgba(255,255,255,.6);font-size:.84rem;margin:0">
-      <?php if($is_guest):?>
-        <i class="fas fa-eye" style="margin-right:5px;opacity:.7"></i>Guest mode — Kagaway viewer (limited access)
-      <?php else:?>
-        <i class="fas fa-lock" style="margin-right:5px;opacity:.7"></i>Password required to view resident data
-      <?php endif;?>
+      <i class="fas fa-lock" style="margin-right:5px;opacity:.7"></i>Password required to view resident data
     </p>
     <?php endif;?>
   </div>
@@ -474,7 +462,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
 
 
 <main>
-<?php if(!$list_unlocked && !$is_guest): ?>
+<?php if(!$list_unlocked): ?>
   <!-- ── PASSWORD GATE ── -->
   <div class="gate-wrap">
     <div class="gate-card">
@@ -514,12 +502,12 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
   </div>
 
 <?php else: ?>
-  <?php if($is_guest): ?>
+  <?php if($is_captain): ?>
   <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 18px;margin-bottom:1rem;display:flex;align-items:flex-start;gap:12px;font-size:13px;color:#92400e">
-    <i class="fas fa-eye" style="font-size:18px;flex-shrink:0;margin-top:1px"></i>
+    <i class="fas fa-star" style="font-size:18px;flex-shrink:0;margin-top:1px;color:#f59e0b"></i>
     <div>
-      <strong>Guest Mode Active — Kagawad View</strong><br>
-      <span style="font-size:12px;opacity:.85">You are viewing summarized resident information. Only resident names and IDs are displayed. For full resident details, please contact the <strong>Barangay Secretary</strong>.</span>
+      <strong>Chairman Monitoring Mode</strong><br>
+      <span style="font-size:12px;opacity:.85">You are viewing resident records in read-only mode. To make changes, please coordinate with the <strong>Barangay Secretary</strong>.</span>
     </div>
   </div>
   <?php endif; ?>
@@ -618,46 +606,8 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
       // Safe ID: use head's DB id instead of name string (no spaces/special chars)
       $safe_id = 'f'.$head['id'];
     ?>
-    <div class="family-block <?=(!$is_guest&&$head['is_hidden'])?'expanded':''?>" id="fam-<?=$safe_id?>">
+    <div class="family-block <?=($head['is_hidden'])?'expanded':''?>" id="fam-<?=$safe_id?>">
       <!-- HEAD ROW -->
-      <?php if($is_guest): ?>
-      <div class="family-head-row <?=$head['is_hidden']?'is-hidden-row':''?>" style="cursor:default" title="Contact the Barangay Secretary for full details">
-        <div class="fav <?=$hAv?>"><?=$hInit?></div>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
-            <span class="f-name"><?=v2($head,'first_name').' '.v2($head,'last_name')?></span>
-            <span class="f-code"><?=$hCode?></span>
-            <span class="f-badge">Head of Family</span>
-            <?php if($famCount>0):?><span style="font-size:10px;background:#f0fdf4;color:#15803d;padding:2px 8px;border-radius:20px;font-weight:700"><?=$famCount?> member<?=$famCount>1?'s':''?></span><?php endif;?>
-          </div>
-        </div>
-        <i class="fas fa-lock" style="color:#cbd5e1;font-size:12px;flex-shrink:0" title="Full details restricted"></i>
-      </div>
-      <!-- Guest: show members name+code only, no body -->
-      <?php if($famCount>0): ?>
-      <div style="border-top:1px solid #f1f5f9">
-        <?php foreach($members as $mem):
-          $mInit = strtoupper(substr($mem['first_name'],0,1).substr($mem['last_name'],0,1));
-          $mAv   = strtolower($mem['gender']??'')==='female'?'av-f':(strtolower($mem['gender']??'')==='male'?'av-m':'av-o');
-          $mCode = ($mem['resident_code'] ?? '') ?: '—';
-        ?>
-        <div style="display:flex;align-items:center;gap:12px;padding:8px 18px 8px 52px;border-bottom:1px solid #f9fafb;background:#fafbfc">
-          <div class="m-av <?=$mAv?>"><?=$mInit?></div>
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
-              <span class="m-name"><?=v2($mem,'first_name').' '.v2($mem,'last_name')?></span>
-              <span style="font-size:10px;font-family:monospace;background:#f1f5f9;color:#475569;padding:2px 7px;border-radius:20px"><?=$mCode?></span>
-            </div>
-          </div>
-          <i class="fas fa-lock" style="color:#cbd5e1;font-size:11px;flex-shrink:0"></i>
-        </div>
-        <?php endforeach; ?>
-        <div style="padding:8px 18px 8px 52px;font-size:11px;color:#b45309;background:#fffbeb;border-top:1px dashed #fde68a;display:flex;align-items:center;gap:6px">
-          <i class="fas fa-circle-info"></i> For full details, please contact the <strong style="margin-left:3px">Barangay Secretary</strong>.
-        </div>
-      </div>
-      <?php endif; ?>
-      <?php else: ?>
       <div class="family-head-row <?=$head['is_hidden']?'is-hidden-row':''?>" onclick="toggleFamily('<?=$safe_id?>',<?=$head['id']?>)">
         <div class="fav <?=$hAv?>"><?=$hInit?></div>
         <div style="flex:1;min-width:0">
@@ -678,10 +628,8 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
         </div>
         <i class="fas fa-chevron-down f-chevron"></i>
       </div>
-      <?php endif; // end guest/non-guest head row ?>
 
-      <!-- FAMILY BODY (head details + members) — hidden from guests -->
-      <?php if(!$is_guest): ?>
+      <!-- FAMILY BODY -->
       <div class="family-body" id="fb-<?=$safe_id?>">
 
         <!-- Head Detail Panel -->
@@ -791,7 +739,6 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
         <?php endforeach;?><!-- end members -->
 
       </div><!-- end family-body -->
-      <?php endif; // end !$is_guest family-body ?>
     </div><!-- end family-block -->
     <?php endforeach; endif; ?>
   </div><!-- end familyView -->
@@ -799,7 +746,7 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
   <!-- ── MAP VIEW ── -->
   <div id="mapView" style="display:<?=$view_mode==='map'?'block':'none'?>">
 
-    <?php if(!$is_guest): ?>
+    <?php if($can_edit): ?>
     <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;flex-wrap:wrap;gap:10px">
       <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#475569">
         <i class="fas fa-location-dot" style="color:#3b82f6"></i>
@@ -892,7 +839,6 @@ footer{background:#0f172a;color:rgba(255,255,255,.3);font-size:11px;text-align:c
 
 <script>
 const mapResidents=<?=json_encode($map_residents??[])?>;
-const IS_GUEST=<?=$is_guest?'true':'false'?>;
 
 // Sidebar
 function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sidebarOverlay').classList.add('open');document.body.style.overflow='hidden';}
@@ -1102,9 +1048,7 @@ function addMarker(res){
     ?'<span style="font-size:10px;color:#16a34a;background:#f0fdf4;padding:2px 6px;border-radius:10px;border:1px solid #bbf7d0">✓ Exact location</span>'
     :'<span style="font-size:10px;color:#b45309;background:#fffbeb;padding:2px 6px;border-radius:10px;border:1px solid #fde68a">⚠ Approximate — click Geocode</span>';
 
-  const detailHtml = IS_GUEST
-    ? `<div style="font-size:11px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;padding:5px 9px;border-radius:6px;margin-top:6px"><i class="fas fa-circle-info"></i> Contact the Barangay Secretary for full details</div>`
-    : `<div style="font-size:12px;color:#475569;line-height:1.8;margin-bottom:6px"><b>Age:</b> ${res.age} yrs &nbsp;·&nbsp; <b>Gender:</b> ${res.gender||'—'}<br><b>Address:</b> ${res.address||'—'}</div>${statusBadge}<br><a href="Edit.php?id=${res.id}" style="display:inline-block;margin-top:8px;background:#3b82f6;color:#fff;padding:4px 12px;border-radius:6px;text-decoration:none;font-size:11px;font-weight:600">Edit Record</a>`;
+  const detailHtml = `<div style="font-size:12px;color:#475569;line-height:1.8;margin-bottom:6px"><b>Age:</b> ${res.age} yrs &nbsp;·&nbsp; <b>Gender:</b> ${res.gender||'—'}<br><b>Address:</b> ${res.address||'—'}</div>${statusBadge}<?php if($can_edit): ?><br><a href="Edit.php?id=${res.id}" style="display:inline-block;margin-top:8px;background:#3b82f6;color:#fff;padding:4px 12px;border-radius:6px;text-decoration:none;font-size:11px;font-weight:600">Edit Record</a><?php endif; ?>`;
 
   const popup=`<div style="font-family:Inter,sans-serif;min-width:190px;line-height:1">
     <b style="font-size:14px;color:#0f172a">${res.name}</b>
@@ -1181,7 +1125,7 @@ function processGeocode(){
     })
     .catch(()=>{ geoTimer=setTimeout(processGeocode,1250); });
 }
-<?php if(($list_unlocked||$is_guest)&&$view_mode==='map'):?>window.addEventListener('load',()=>{initMap();mapInit=true;});<?php endif;?>
+<?php if($list_unlocked&&$view_mode==='map'):?>window.addEventListener('load',()=>{initMap();mapInit=true;});<?php endif;?>
 
 // Modals
 function openModal(id){document.getElementById(id).classList.add('show');document.body.style.overflow='hidden';}
